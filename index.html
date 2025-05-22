@@ -1,0 +1,1075 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>遊戲計算器</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/core-js/3.38.1/minified.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prop-types/15.8.1/prop-types.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.12.7/Recharts.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.0/dist/tesseract.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            cherry: {
+              50: '#fff0f6',
+              100: '#ffd6e7',
+              200: '#ffadd2',
+              300: '#ff85b8',
+              400: '#f75998',
+              500: '#eb2f7a',
+              600: '#c41d5d',
+              700: '#9e1045',
+              800: '#78062f',
+              900: '#52001d',
+            },
+            chart: {
+              blue: '#3b82f6',
+              green: '#10b981',
+              purple: '#8b5cf6',
+              teal: '#14b8a6',
+              orange: '#f97316',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <script type="text/javascript">
+    var gk_isXlsx = false;
+    var gk_xlsxFileLookup = {};
+    var gk_fileData = {};
+    function filledCell(cell) {
+      return cell !== '' && cell != null;
+    }
+    function loadFileData(filename) {
+      if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+        try {
+          var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+          var firstSheetName = workbook.SheetNames[0];
+          var worksheet = workbook.Sheets[firstSheetName];
+          var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+          var filteredData = jsonData.filter(row => row.some(filledCell));
+          var headerRowIndex = filteredData.findIndex((row, index) =>
+            row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+          );
+          if (headerRowIndex === -1 || headerRowIndex > 25) {
+            headerRowIndex = 0;
+          }
+          var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex));
+          csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+          return csv;
+        } catch (e) {
+          console.error(e);
+          return "";
+        }
+      }
+      return gk_fileData[filename] || "";
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap');
+    body {
+      font-family: 'Noto Sans TC', sans-serif;
+      background-color: #fff0f6;
+      margin: 0;
+      padding: 0;
+    }
+    .input-focus:focus {
+      border-color: #eb2f7a;
+      box-shadow: 0 0 0 3px rgba(235, 47, 122, 0.2);
+      outline: none;
+    }
+    .cherry-gradient {
+      background: linear-gradient(135deg, #ffd6e7 0%, #eb2f7a 100%);
+    }
+    .result-card {
+      transition: all 0.3s ease;
+    }
+    .result-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(235, 47, 122, 0.1);
+    }
+    .scrollbar-cherry::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .scrollbar-cherry::-webkit-scrollbar-track {
+      background: #ffd6e7;
+    }
+    .scrollbar-cherry::-webkit-scrollbar-thumb {
+      background-color: #eb2f7a;
+      border-radius: 20px;
+    }
+    @media (max-width: 640px) {
+      .container {
+        padding: 1rem;
+      }
+      h1 {
+        font-size: 1.5rem;
+      }
+      h2 {
+        font-size: 1.125rem;
+      }
+      input, button {
+        font-size: 0.875rem;
+        padding: 0.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    // 側邊欄組件
+    const Sidebar = ({ setActiveCalculator }) => {
+      const [isOpen, setIsOpen] = useState(false);
+
+      return (
+        <>
+          <button
+            className="md:hidden fixed top-4 left-4 z-50 text-cherry-800 p-2 rounded-full bg-cherry-100 hover:bg-cherry-200"
+            onClick={() => setIsOpen(!isOpen)}
+          >
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" />
+            </svg>
+          </button>
+          <div
+            className={`fixed top-0 left-0 h-full bg-cherry-50 w-64 transform ${
+              isOpen ? 'translate-x-0' : '-translate-x-full'
+            } md:translate-x-0 transition-transform duration-300 ease-in-out z-40 shadow-lg`}
+          >
+            <div className="p-4">
+              <h2 className="text-lg font-bold text-cherry-800">計算器</h2>
+              <nav className="mt-4 space-y-2">
+                <button
+                  onClick={() => { setActiveCalculator('damage'); setIsOpen(false); }}
+                  className="block w-full text-left py-2 px-4 text-cherry-700 hover:bg-cherry-100 rounded-lg transition-colors"
+                >
+                  防守計算器
+                </button>
+                <button
+                  onClick={() => { setActiveCalculator('healing'); setIsOpen(false); }}
+                  className="block w-full text-left py-2 px-4 text-cherry-700 hover:bg-cherry-100 rounded-lg transition-colors"
+                >
+                  治療強度計算
+                </button>
+              </nav>
+            </div>
+          </div>
+          {isOpen && (
+            <div
+              className="fixed inset-0 bg-black bg-opacity-50 md:hidden z-30"
+              onClick={() => setIsOpen(false)}
+            ></div>
+          )}
+        </>
+      );
+    };
+
+    // 圖片上傳組件
+    const ImageUploader = ({ setInputs, type }) => {
+      const [uploadedImages, setUploadedImages] = useState([]);
+      const [isProcessing, setIsProcessing] = useState(false);
+      const [progress, setProgress] = useState(0);
+      const [error, setError] = useState(null);
+
+      const handleImageUpload = (event) => {
+        const files = Array.from(event.target.files);
+        if (files.length > 0) {
+          setUploadedImages(files);
+          setError(null);
+        }
+      };
+
+      const preprocessImage = (file) => {
+        return new Promise((resolve) => {
+          const img = new Image();
+          img.src = URL.createObjectURL(file);
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const MAX_SIZE = 1280;
+            let { width, height } = img;
+            if (width > MAX_SIZE || height > MAX_SIZE) {
+              const ratio = Math.min(MAX_SIZE / width, MAX_SIZE / height);
+              width *= ratio;
+              height *= ratio;
+            }
+            canvas.width = width;
+            canvas.height = height;
+            ctx.drawImage(img, 0, 0, width, height);
+
+            // 灰度轉換與二值化
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imageData.data;
+            for (let i = 0; i < data.length; i += 4) {
+              const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
+              const binary = avg > 128 ? 255 : 0;
+              data[i] = data[i + 1] = data[i + 2] = binary;
+            }
+            ctx.putImageData(imageData, 0, 0);
+
+            canvas.toBlob((blob) => {
+              resolve(blob);
+            }, 'image/png');
+          };
+          img.onerror = () => {
+            setError('圖像加載失敗，請檢查文件格式');
+            resolve(file);
+          };
+        });
+      };
+
+      const startRecognition = async () => {
+        if (uploadedImages.length === 0) return;
+
+        setIsProcessing(true);
+        setProgress(0);
+        setError(null);
+
+        let combinedValues = {};
+
+        for (let i = 0; i < uploadedImages.length; i++) {
+          const file = uploadedImages[i];
+          try {
+            const processedImage = await preprocessImage(file);
+
+            const { data: { text } } = await Tesseract.recognize(
+              processedImage,
+              'chi_tra+eng',
+              {
+                logger: m => {
+                  if (m.status === 'recognizing text') {
+                    setProgress(Math.round((i / uploadedImages.length + m.progress / uploadedImages.length) * 100));
+                  }
+                }
+              }
+            );
+
+            const values = parseText(text, type);
+            if (Object.keys(values).length === 0) {
+              setError(`圖片 ${file.name} 未能識別到有效數據，請確保圖片清晰且包含屬性文字`);
+            }
+            combinedValues = { ...combinedValues, ...values };
+
+          } catch (error) {
+            setError(`處理圖片 ${file.name} 時出錯：${error.message}`);
+          }
+        }
+
+        if (Object.keys(combinedValues).length > 0) {
+          setInputs(prev => ({ ...prev, ...combinedValues }));
+        }
+        setIsProcessing(false);
+        setProgress(0);
+      };
+
+      const parseText = (text, type) => {
+        const values = {};
+        const regex = /([\u4e00-\u9fa5]+[\u4e00-\u9fa5\s：:]*)\s*[：:]*\s*([\d.,\/%-]+(?:\s*-\s*\d+)?)/g;
+        let match;
+
+        while ((match = regex.exec(text)) !== null) {
+          const label = match[1].trim().replace(/\s+/g, '');
+          let value = match[2].replace(/[,]/g, '').replace('%', '');
+
+          if (type === 'attacker') {
+            if (label.includes('技能倍率')) values.skill_multiplier = value;
+            if (label.includes('攻擊') && !label.includes('元素攻擊') && !label.includes('攻擊%')) {
+              const [low] = value.split('-').map(Number);
+              values.D = low.toString();
+            }
+            if (label.includes('元素攻擊')) values.E = value;
+            if (label.includes('會心數值') || (label.includes('會心') && !label.includes('會心傷害') && !label.includes('會心防禦'))) {
+              values.b_c = value;
+            }
+            if (label.includes('會心傷害')) {
+              values.d_c = (parseFloat(value) / 100).toString();
+            }
+            if (label.includes('流派克制') && !label.includes('流派克制%')) {
+              const [baseValue] = value.split('/').map(v => v.trim());
+              values.R = baseValue;
+            }
+            if (label.includes('流派克制%')) {
+              const [, percentValue] = value.split('/').map(v => parseFloat(v));
+              values.flow_percent = (percentValue / 100).toString();
+            }
+            if (label.includes('命中')) values.h = value;
+            if (label.includes('破防')) values.b_d = value;
+            if (label.includes('破盾')) values.b_s = value;
+            if (label.includes('忽視元素抗性')) values.b_e = value;
+            if (label.includes('增傷')) {
+              values.damage_increase = (parseFloat(value) / 100).toString();
+            }
+            if (label.includes('技能增傷')) {
+              values.skill_damage_increase = value;
+            }
+          } else if (type === 'defender') {
+            if (label.includes('氣血')) values.hp = value.split('/')[0];
+            if (label.includes('防禦')) values.d_d = value;
+            if (label.includes('抗會心數值') || (label.includes('會心') && !label.includes('會心傷害') && !label.includes('會心防禦'))) {
+              values.b_c_defense = value;
+            }
+            if (label.includes('會心防禦')) {
+              values.d_c_defense = (parseFloat(value) / 100).toString();
+            }
+            if (label.includes('格擋')) values.b_b = value;
+            if (label.includes('元素抗性')) values.d_e = value;
+            if (label.includes('傷害減免')) {
+              values.damage_reduction = (parseFloat(value) / 100).toString();
+            }
+            if (label.includes('流派抵禦') && !label.includes('流派抵禦%')) {
+              const [baseValue] = value.split('/').map(v => v.trim());
+              values.d_f = baseValue;
+            }
+            if (label.includes('流派抵禦%')) {
+              const [, percentValue] = value.split('/').map(v => parseFloat(v));
+              values.flow_percent = (percentValue / 100).toString();
+            }
+            if (label.includes('怪物克制')) {
+              const [, second] = value.split('/').map(v => parseFloat(v));
+              values.flow_resist_percent = (second / 100).toString();
+            }
+            if (label.includes('氣盾')) values.d_s = value;
+            if (label.includes('技能減免')) values.skill_damage_reduction = value;
+          }
+
+          if (label.includes('破防')) values.armor_break = value;
+          if (label.includes('命中')) values.hit = value;
+          if (label.includes('元素攻擊')) values.elemental_attack = value;
+          if (label.includes('首領克制')) {
+            const [first] = value.split('/').map(v => parseFloat(v));
+            values.boss_restraint = first.toString();
+          }
+          if (label.includes('流派克制')) {
+            const [first, second] = value.split('/').map(v => parseFloat(v));
+            values.faction_restraint = Math.max(first, second).toString();
+          }
+          if (label.includes('抗性忽視')) values.resistance_ignore = value;
+          if (label.includes('治療強度')) values.healing_power_equip = value;
+        }
+        return values;
+      };
+
+      return (
+        <div className="mb-4">
+          <label className="block mb-2 text-sm font-medium text-gray-700">
+            {type === 'attacker' ? '上傳攻擊方截圖' : type === 'defender' ? '上傳防守方截圖' : '上傳截圖'}
+          </label>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleImageUpload}
+            multiple
+            className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-cherry-500 file:text-white hover:file:bg-cherry-600"
+          />
+          {error && (
+            <p className="mt-2 text-sm text-red-600">{error}</p>
+          )}
+          {uploadedImages.length > 0 && (
+            <div className="mt-2 flex items-center space-x-2">
+              <p className="text-xs text-gray-500">已選 {uploadedImages.length} 張圖片</p>
+              <button
+                onClick={startRecognition}
+                disabled={isProcessing}
+                className="bg-cherry-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-cherry-700 disabled:bg-cherry-300 transition-colors"
+              >
+                {isProcessing ? `識別中... ${progress}%` : '開始識別'}
+              </button>
+            </div>
+          )}
+          {isProcessing && (
+            <div className="mt-2 w-full bg-gray-200 rounded-full h-2.5">
+              <div 
+                className="bg-cherry-600 h-2.5 rounded-full transition-all duration-300" 
+                style={{ width: `${progress}%` }}
+              ></div>
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    // 治療強度計算器
+    const HealingCalculator = () => {
+      const [inputs, setInputs] = useState({
+        armor_break: "0",
+        hit: "0",
+        elemental_attack: "0",
+        boss_restraint: "0",
+        faction_restraint: "0",
+        resistance_ignore: "0",
+        healing_power_equip: "0"
+      });
+
+      const handleChange = (e) => {
+        const { name, value } = e.target;
+        if (value < 0) return;
+        setInputs((prev) => ({ ...prev, [name]: value }));
+      };
+
+      const calculateHealing = () => {
+        const {
+          armor_break, hit, elemental_attack, boss_restraint, faction_restraint, resistance_ignore, healing_power_equip
+        } = inputs;
+
+        const toNum = (val) => parseFloat(val) || 0;
+
+        const attributeConversion = (
+          (toNum(armor_break) * 3 / 1000) +
+          (toNum(hit) * 9 / 1000) +
+          (toNum(elemental_attack) * 7 / 1000) +
+          (toNum(boss_restraint) * 3 / 1000) +
+          (toNum(faction_restraint) * 3 / 1000) +
+          (toNum(resistance_ignore) * 9 / 1000)
+        );
+
+        const healingPower = Math.floor(attributeConversion) * 100 + toNum(healing_power_equip) + 503;
+
+        return {
+          attributeConversion: attributeConversion.toFixed(2),
+          healingPower: healingPower.toFixed(0)
+        };
+      };
+
+      const result = calculateHealing();
+
+      return (
+        <div className="p-4 container mx-auto min-h-screen">
+          <div className="cherry-gradient rounded-xl p-6 mb-6 shadow-lg">
+            <h1 className="text-xl md:text-2xl font-bold text-center text-white">治療強度計算器</h1>
+            <p className="text-center text-white text-opacity-90 text-sm mt-1">如有問題請聯繫櫻桃白蘭地@緣定今生</p>
+          </div>
+
+          <ImageUploader setInputs={setInputs} type="healing" />
+
+          <div className="bg-white p-4 md:p-6 rounded-xl shadow-md border border-gray-100 mb-6">
+            <div className="flex items-center mb-4">
+              <div className="w-1.5 h-5 rounded-full bg-cherry-500 mr-2"></div>
+              <h2 className="font-bold text-base md:text-lg text-gray-800">治療參數</h2>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {[
+                { key: "armor_break", label: "破防", icon: "🛡️" },
+                { key: "hit", label: "命中", icon: "🎯" },
+                { key: "elemental_attack", label: "元素攻擊", icon: "✨" },
+                { key: "boss_restraint", label: "首領克制", icon: "👑" },
+                { key: "faction_restraint", label: "流派克制", icon: "🔄" },
+                { key: "resistance_ignore", label: "抗性忽視", icon: "🌀" },
+                { key: "healing_power_equip", label: "治療強度（裝備）", icon: "💉" }
+              ].map(({ key, label, icon }) => (
+                <div key={key} className="flex flex-col">
+                  <label className="text-xs md:text-sm text-gray-600 mb-1 flex items-center">
+                    <span className="mr-1 md:mr-2">{icon}</span>{label}
+                  </label>
+                  <input
+                    type="number"
+                    name={key}
+                    value={inputs[key]}
+                    onChange={handleChange}
+                    min="0"
+                    className="input-focus border border-gray-200 rounded-lg p-2 text-sm w-full"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="result-card bg-white p-4 md:p-6 rounded-xl shadow-md border border-gray-100">
+            <div className="flex items-center mb-4">
+              <div className="w-1.5 h-5 rounded-full bg-cherry-500 mr-2"></div>
+              <h2 className="font-bold text-base md:text-lg text-gray-800">計算結果</h2>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="bg-cherry-50 p-3 rounded-lg">
+                <p className="text-xs text-cherry-700">屬性轉換值</p>
+                <p className="text-lg md:text-xl font-bold text-cherry-800">{result.attributeConversion}</p>
+              </div>
+              <div className="bg-cherry-500 p-3 rounded-lg">
+                <p className="text-xs text-white">總治療強度</p>
+                <p className="text-lg md:text-xl font-bold text-white">{result.healingPower}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    // 減傷計算器
+    const DamageCalculator = () => {
+      const [inputs, setInputs] = useState({
+        skill_multiplier: "1518",
+        D: "5000", E: "817", b_c: "789", d_c: "1.687", R: "477", h: "600",
+        b_d: "2500", b_s: "700", b_e: "200", flow_percent: "0", damage_increase: "0.05",
+        skill_damage_increase: "0",
+        d_s: "1500", d_f: "1171", d_d: "6240", d_e: "0", b_b: "500", hp: "70000",
+        b_c_defense: "479", d_c_defense: "0", flow_resist_percent: "0.03", damage_reduction: "0",
+        skill_damage_reduction: "0",
+        lambda_1: "358", lambda_2: "0.359", lambda_3: "2860", lambda_4: "531", W: "1"
+      });
+      const [previousResult, setPreviousResult] = useState(null);
+      const [previousInputs, setPreviousInputs] = useState(null);
+
+      const handleChange = (e) => {
+        const { name, value } = e.target;
+        if (value < 0) return;
+        setInputs((prev) => ({ ...prev, [name]: value }));
+      };
+
+      const saveCurrentResult = () => {
+        setPreviousResult(calculate(inputs));
+        setPreviousInputs({ ...inputs });
+      };
+
+      const toNum = (val) => {
+        const num = parseFloat(val);
+        return isNaN(num) ? 0 : num;
+      };
+
+      const calculate = (inputs) => {
+        const {
+          skill_multiplier, D, E, b_c, d_c, R, h, b_d, b_s, b_e, flow_percent, damage_increase,
+          skill_damage_increase,
+          d_s, d_f, d_d, d_e, b_b, hp, b_c_defense, d_c_defense, flow_resist_percent, damage_reduction,
+          skill_damage_reduction,
+          lambda_1, lambda_2, lambda_3, lambda_4, W
+        } = inputs;
+
+        const c = toNum(b_c) - toNum(b_c_defense);
+        const p_c = (115 * c + 90) / (c + 940) / 100 + 0.05;
+        const r_h = 143 * toNum(h) / (toNum(h) + 3678) / 100;
+        const r_b = 143 * toNum(b_b) / (toNum(b_b) + 3678) / 100;
+        const p_h = Math.min(1, 0.95 + r_h - r_b);
+        const m_c = 1 + p_c * (toNum(d_c) - 1 - toNum(d_c_defense) + 0.5);
+        const d_mul = m_c * p_h + 0.5 * (1 - p_h);
+        const G = toNum(b_s) >= toNum(d_s)
+          ? 0
+          : toNum(d_s) / 3 <= toNum(b_s)
+            ? 0.5 * (toNum(d_s) - toNum(b_s))
+            : toNum(d_s) - 2 * toNum(b_s);
+        const A = toNum(D) + (toNum(R) - toNum(d_f)) - G;
+        const gamma = toNum(d_d) - toNum(b_d) > 0
+          ? (toNum(d_d) - toNum(b_d)) / (toNum(d_d) - toNum(b_d) + toNum(lambda_3))
+          : 0;
+        const beta = toNum(d_e) - toNum(b_e) > 0
+          ? (toNum(d_e) - toNum(b_e)) / (toNum(d_e) - toNum(b_e) + toNum(lambda_4))
+          : 0;
+
+        const c_original = toNum(b_c);
+        const p_c_original = (115 * c_original + 90) / (c_original + 940) / 100 + 0.05;
+        const r_h_original = r_h;
+        const r_b_original = 0;
+        const p_h_original = Math.min(1, 0.95 + r_h_original - r_b_original);
+        const m_c_original = 1 + p_c_original * (toNum(d_c) - 1 + 0.5);
+        const d_mul_original = m_c_original * p_h_original + 0.5 * (1 - p_h_original);
+        const G_original = toNum(b_s);
+        const A_original = toNum(D) + toNum(R) + G_original;
+        const gamma_original = 0;
+        const beta_original = 0;
+
+        const baseDamage = (
+          (toNum(skill_multiplier) / 100) * (((toNum(lambda_1) + toNum(lambda_2) * A_original) * (1 - gamma_original)) +
+          toNum(W) * toNum(lambda_2) * toNum(E) * (1 - beta_original))
+        ) * d_mul_original * (1 + toNum(flow_percent)) * (1 + toNum(damage_increase)) * (1 + toNum(skill_damage_increase) / 100);
+
+        const finalDamage = (
+          (toNum(skill_multiplier) / 100) * (((toNum(lambda_1) + toNum(lambda_2) * A) * (1 - gamma)) +
+          toNum(W) * toNum(lambda_2) * toNum(E) * (1 - beta))
+        ) * d_mul * (1 + toNum(flow_percent) - toNum(flow_resist_percent)) * (1 + toNum(damage_increase) - toNum(damage_reduction)) * (1 + toNum(skill_damage_increase) / 100 - toNum(skill_damage_reduction) / 100);
+
+        const totalReduction = (baseDamage - finalDamage) / baseDamage || 0;
+        const ehp = toNum(hp) / (1 - totalReduction) || toNum(hp);
+
+        return {
+          c: c.toFixed(2),
+          p_c: (p_c * 100).toFixed(2) + "%",
+          r_h: (r_h * 100).toFixed(2) + "%",
+          r_b: (r_b * 100).toFixed(2) + "%",
+          p_h: p_h.toFixed(4),
+          m_c: m_c.toFixed(4),
+          d_mul: d_mul.toFixed(4),
+          G: G.toFixed(2),
+          A: A.toFixed(2),
+          gamma: (gamma * 100).toFixed(2) + "%",
+          beta: (beta * 100).toFixed(2) + "%",
+          c_original: c_original.toFixed(2),
+          p_c_original: (p_c_original * 100).toFixed(2) + "%",
+          r_h_original: (r_h_original * 100).toFixed(2) + "%",
+          r_b_original: (r_b_original * 100).toFixed(2) + "%",
+          p_h_original: p_h_original.toFixed(4),
+          m_c_original: m_c_original.toFixed(4),
+          d_mul_original: d_mul_original.toFixed(4),
+          G_original: G_original.toFixed(2),
+          A_original: A_original.toFixed(2),
+          gamma_original: (gamma_original * 100).toFixed(2) + "%",
+          beta_original: (beta_original * 100).toFixed(2) + "%",
+          baseDamage: baseDamage.toFixed(2),
+          finalDamage: finalDamage.toFixed(2),
+          totalReduction: (totalReduction * 100).toFixed(2) + "%",
+          ehp: ehp.toFixed(2)
+        };
+      };
+
+      const generateChartData = (inputs) => {
+        const attribute_points = Array.from({ length: 51 }, (_, i) => i * 200);
+        const reductions = { ds: [], dd: [], df: [], de: [], bb: [] };
+        const delta_reductions = { ds: [], dd: [], df: [], de: [], bb: [] };
+
+        const calculateDamage = (D, R, b_s, d_s, d_f, b_d, d_d, E, b_e, d_e, b_c, d_c, h, b_b, b_c_defense, d_c_defense, flow_percent, damage_increase, flow_resist_percent, damage_reduction, lambda_1, lambda_2, lambda_3, lambda_4, W) => {
+          const c = toNum(b_c) - toNum(b_c_defense);
+          const p_c = (115 * c + 90) / (c + 940) / 100;
+          const r_h = 143 * toNum(h) / (toNum(h) + 3678) / 100;
+          const r_b = 143 * toNum(b_b) / (toNum(b_b) + 3678) / 100;
+          const p_h = Math.min(1, 0.95 + r_h - r_b);
+          const m_c = 1 + p_c * (toNum(d_c) - 1 - toNum(d_c_defense));
+          const d_mul = m_c * p_h + 0.5 * (1 - p_h);
+          const G = toNum(b_s) >= toNum(d_s)
+            ? 0
+            : toNum(d_s) / 3 <= toNum(b_s)
+              ? 0.5 * (toNum(d_s) - toNum(b_s))
+              : toNum(d_s) - 2 * toNum(b_s);
+          const A = toNum(D) + (toNum(R) - toNum(d_f)) - G;
+          const gamma = toNum(d_d) - toNum(b_d) > 0
+            ? (toNum(d_d) - toNum(b_d)) / (toNum(d_d) - toNum(b_d) + toNum(lambda_3))
+            : 0;
+          const beta = toNum(d_e) - toNum(b_e) > 0
+            ? (toNum(d_e) - toNum(b_e)) / (toNum(d_e) - toNum(b_e) + toNum(lambda_4))
+            : 0;
+          const f_theta = (toNum(lambda_1) + toNum(lambda_2) * A) * (1 - gamma);
+          const g_theta = toNum(W) * toNum(lambda_2) * toNum(E) * (1 - beta);
+          const d_base = f_theta + g_theta;
+          return d_base * d_mul * (1 + toNum(flow_percent) - toNum(flow_resist_percent)) * (1 + toNum(damage_increase) - toNum(damage_reduction));
+        };
+
+        const d_original = calculateDamage(
+          toNum(inputs.D), toNum(inputs.R), toNum(inputs.b_s), 0, 0, toNum(inputs.b_d), 0,
+          toNum(inputs.E), toNum(inputs.b_e), 0, toNum(inputs.b_c), toNum(inputs.d_c),
+          toNum(inputs.h), 0, 0, 0, toNum(inputs.flow_percent), toNum(inputs.damage_increase), 0, 0,
+          toNum(inputs.lambda_1), toNum(inputs.lambda_2), toNum(inputs.lambda_3), toNum(inputs.lambda_4), toNum(inputs.W)
+        );
+
+        const calculateReduction = (attr, value) => {
+          const params = { d_s: 0, d_d: 0, d_f: 0, d_e: 0, b_b: 0 };
+          params[attr] = value;
+          const d_reduced = calculateDamage(
+            toNum(inputs.D), toNum(inputs.R), toNum(inputs.b_s), params.d_s, params.d_f,
+            toNum(inputs.b_d), params.d_d, toNum(inputs.E), toNum(inputs.b_e), params.d_e,
+            toNum(inputs.b_c), toNum(inputs.d_c), toNum(inputs.h), params.b_b,
+            toNum(inputs.b_c_defense), toNum(inputs.d_c_defense),
+            toNum(inputs.flow_percent), toNum(inputs.damage_increase),
+            toNum(inputs.flow_resist_percent), toNum(inputs.damage_reduction),
+            toNum(inputs.lambda_1), toNum(inputs.lambda_2), toNum(inputs.lambda_3), toNum(inputs.lambda_4), toNum(inputs.W)
+          );
+          return d_original ? 1 - d_reduced / d_original : 0;
+        };
+
+        attribute_points.forEach((point) => {
+          reductions.ds.push(calculateReduction('d_s', point));
+          reductions.dd.push(calculateReduction('d_d', point));
+          reductions.df.push(calculateReduction('d_f', point));
+          reductions.de.push(calculateReduction('d_e', point));
+          reductions.bb.push(calculateReduction('b_b', point));
+        });
+
+        for (let i = 1; i < reductions.ds.length; i++) {
+          delta_reductions.ds.push(reductions.ds[i] - reductions.ds[i - 1]);
+          delta_reductions.dd.push(reductions.dd[i] - reductions.dd[i - 1]);
+          delta_reductions.df.push(reductions.df[i] - reductions.df[i - 1]);
+          delta_reductions.de.push(reductions.de[i] - reductions.de[i - 1]);
+          delta_reductions.bb.push(reductions.bb[i] - reductions.bb[i - 1]);
+        }
+
+        const deltaData = attribute_points.slice(1).map((point, i) => ({
+          point,
+          ds: delta_reductions.ds[i],
+          dd: delta_reductions.dd[i],
+          df: delta_reductions.df[i],
+          de: delta_reductions.de[i],
+          bb: delta_reductions.bb[i]
+        }));
+
+        const reductionData = attribute_points.map((point, i) => ({
+          point,
+          ds: reductions.ds[i],
+          dd: reductions.dd[i],
+          df: reductions.df[i],
+          de: reductions.de[i],
+          bb: reductions.bb[i]
+        }));
+
+        return { deltaData, reductionData };
+      };
+
+      const CustomTooltip = ({ active, payload, label, isDelta }) => {
+        if (active && payload && payload.length) {
+          return (
+            <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-sm">
+              <p className="text-sm text-gray-700 font-medium">屬性點: {label}</p>
+              {payload.map((entry, index) => (
+                <p key={index} className="text-sm text-gray-600">
+                  <span style={{ color: entry.stroke }}>{entry.name}</span>: {(entry.value * 100).toFixed(isDelta ? 4 : 2)}%
+                </p>
+              ))}
+            </div>
+          );
+        }
+        return null;
+      };
+
+      const result = calculate(inputs);
+      const { deltaData, reductionData } = generateChartData(inputs);
+
+      return (
+        <div className="p-4 container mx-auto min-h-screen">
+          <div className="cherry-gradient rounded-xl p-6 mb-6 shadow-lg">
+            <h1 className="text-xl md:text-2xl font-bold text-center text-white">防守屬性計算器</h1>
+            <p className="text-center text-white text-opacity-90 text-sm mt-1">如有問題請聯繫櫻桃白蘭地@緣定今生</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="bg-white p-4 md:p-6 rounded-xl shadow-md border border-gray-100">
+              <div className="flex items-center mb-4">
+                <div className="w-1.5 h-5 rounded-full bg-cherry-500 mr-2"></div>
+                <h2 className="font-bold text-base md:text-lg text-gray-800">攻擊方參數</h2>
+              </div>
+              <ImageUploader setInputs={setInputs} type="attacker" />
+              <div className="grid grid-cols-1 gap-3">
+                {[
+                  { key: "skill_multiplier", label: "技能倍率", icon: "🔥" },
+                  { key: "D", label: "攻擊", icon: "⚔️" },
+                  { key: "E", label: "元素攻擊", icon: "✨" },
+                  { key: "b_c", label: "會心數值", icon: "🎯" },
+                  { key: "d_c", label: "會心傷害", icon: "💥" },
+                  { key: "R", label: "流派克制", icon: "🔄" },
+                  { key: "h", label: "命中", icon: "🎯" },
+                  { key: "b_d", label: "破防", icon: "🛡️" },
+                  { key: "b_s", label: "破盾", icon: "🔨" },
+                  { key: "b_e", label: "忽視元素抗性", icon: "🌀" },
+                  { key: "flow_percent", label: "流派克制%", icon: "📊" },
+                  { key: "damage_increase", label: "增傷%", icon: "📈" },
+                  { key: "skill_damage_increase", label: "技能增傷%", icon: "📈" }
+                ].map(({ key, label, icon }) => (
+                  <div key={key} className="flex flex-col">
+                    <label className="text-xs md:text-sm text-gray-600 mb-1 flex items-center">
+                      <span className="mr-1 md:mr-2">{icon}</span>{label}
+                    </label>
+                    <input
+                      type="number"
+                      name={key}
+                      value={inputs[key]}
+                      onChange={handleChange}
+                      min="0"
+                      className="input-focus border border-gray-200 rounded-lg p-2 text-sm w-full"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            <div className="bg-white p-4 md:p-6 rounded-xl shadow-md border border-gray-100">
+              <div className="flex items-center mb-4">
+                <div className="w-1.5 h-5 rounded-full bg-cherry-500 mr-2"></div>
+                <h2 className="font-bold text-base md:text-lg text-gray-800">防守方參數</h2>
+              </div>
+              <ImageUploader setInputs={setInputs} type="defender" />
+              <div className="grid grid-cols-1 gap-3">
+                {[
+                  { key: "d_s", label: "氣盾", icon: "🛡️" },
+                  { key: "d_f", label: "流派抵禦", icon: "🔄" },
+                  { key: "d_d", label: "防禦", icon: "🏰" },
+                  { key: "d_e", label: "元素抗性", icon: "🌀" },
+                  { key: "b_b", label: "格擋", icon: "✋" },
+                  { key: "hp", label: "氣血", icon: "❤️" },
+                  { key: "b_c_defense", label: "抗會心數值", icon: "🎯" },
+                  { key: "d_c_defense", label: "會心防禦%", icon: "📊" },
+                  { key: "flow_resist_percent", label: "流派抵禦%", icon: "📊" },
+                  { key: "damage_reduction", label: "傷害減免%", icon: "📉" },
+                  { key: "skill_damage_reduction", label: "技能減免%", icon: "📉" }
+                ].map(({ key, label, icon }) => (
+                  <div key={key} className="flex flex-col">
+                    <label className="text-xs md:text-sm text-gray-600 mb-1 flex items-center">
+                      <span className="mr-1 md:mr-2">{icon}</span>{label}
+                    </label>
+                    <input
+                      type="number"
+                      name={key}
+                      value={inputs[key]}
+                      onChange={handleChange}
+                      min="0"
+                      className="input-focus border border-gray-200 rounded-lg p-2 text-sm w-full"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            <div className="bg-white p-4 md:p-6 rounded-xl shadow-md border border-gray-100">
+              <div className="flex items-center mb-4">
+                <div className="w-1.5 h-5 rounded-full bg-cherry-500 mr-2"></div>
+                <h2 className="font-bold text-base md:text-lg text-gray-800">系統常數</h2>
+              </div>
+              <div className="grid grid-cols-1 gap-3">
+                {[
+                  { key: "lambda_1", label: "λ₁", icon: "α" },
+                  { key: "lambda_2", label: "λ₂", icon: "β" },
+                  { key: "lambda_3", label: "λ₃", icon: "γ" },
+                  { key: "lambda_4", label: "λ₄", icon: "δ" },
+                  { key: "W", label: "W", icon: "ω" }
+                ].map(({ key, label, icon }) => (
+                  <div key={key} className="flex flex-col">
+                    <label className="text-xs md:text-sm text-gray-600 mb-1 flex items-center">
+                      <span className="mr-1 md:mr-2">{icon}</span>{label}
+                    </label>
+                    <div className="border border-gray-200 rounded-lg p-2 bg-gray-50 text-sm text-gray-700">
+                      {inputs[key]}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div className="result-card bg-white p-4 md:p-6 rounded-xl shadow-md border border-gray-100">
+              <div className="flex items-center mb-4">
+                <div className="w-1.5 h-5 rounded-full bg-cherry-500 mr-2"></div>
+                <h2 className="font-bold text-base md:text-lg text-gray-800">減傷後屬性</h2>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { label: "真實會心", value: result.c },
+                  { label: "會心率", value: result.p_c },
+                  { label: "命中修正", value: result.r_h },
+                  { label: "格擋率", value: result.r_b },
+                  { label: "命中增幅倍率", value: result.p_h },
+                  { label: "會心傷害倍率", value: result.m_c },
+                  { label: "傷害倍率", value: result.d_mul },
+                  { label: "剩餘氣盾", value: result.G },
+                ].map(({ label, value }) => (
+                  <div key={label} className="bg-cherry-50 p-3 rounded-lg">
+                    <p className="text-xs text-cherry-600">{label}</p>
+                    <p className="text-sm font-bold text-cherry-800">{value}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            <div className="result-card bg-white p-4 md:p-6 rounded-xl shadow-md border border-gray-100">
+              <div className="flex items-center mb-4">
+                <div className="w-1.5 h-5 rounded-full bg-cherry-500 mr-2"></div>
+                <h2 className="font-bold text-base md:text-lg text-gray-800">原數值屬性</h2>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { label: "真實會心", value: result.c_original },
+                  { label: "會心率", value: result.p_c_original },
+                  { label: "命中修正", value: result.r_h_original },
+                  { label: "格擋率", value: result.r_b_original },
+                  { label: "命中增幅倍率", value: result.p_h_original },
+                  { label: "會心傷害倍率", value: result.m_c_original },
+                  { label: "傷害倍率", value: result.d_mul_original },
+                  { label: "剩餘氣盾", value: result.G_original },
+                ].map(({ label, value }) => (
+                  <div key={label} className="bg-gray-50 p-3 rounded-lg">
+                    <p className="text-xs text-gray-600">{label}</p>
+                    <p className="text-sm font-bold text-gray-800">{value}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="result-card bg-white p-4 md:p-6 rounded-xl shadow-md border border-gray-100 mb-6">
+            <div className="flex justify-between items-center mb-4">
+              <div className="flex items-center">
+                <div className="w-1.5 h-5 rounded-full bg-cherry-500 mr-2"></div>
+                <h2 className="font-bold text-base md:text-lg text-gray-800">傷害計算結果</h2>
+              </div>
+              <button
+                onClick={saveCurrentResult}
+                className="bg-cherry-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-cherry-700 transition-colors"
+              >
+                保存結果
+              </button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+              {[
+                { label: "原傷害", value: result.baseDamage, color: "cherry-100" },
+                { label: "減傷後傷害", value: result.finalDamage, color: "cherry-100" },
+                { label: "有效氣血 (EHP)", value: result.ehp, color: "cherry-100" },
+                { label: "總減傷率", value: result.totalReduction, color: "cherry-500", text: "white" },
+              ].map(({ label, value, color, text }) => (
+                <div key={label} className={`bg-${color} p-3 rounded-lg`}>
+                  <p className={`text-xs ${text ? `text-${text}` : 'text-cherry-700'}`}>{label}</p>
+                  <p className={`text-lg font-bold ${text ? `text-${text}` : 'text-cherry-800'}`}>{value}</p>
+                </div>
+              ))}
+            </div>
+            {previousResult && previousInputs && (
+              <div className="mt-6">
+                <div className="flex items-center mb-4">
+                  <div className="w-1.5 h-5 rounded-full bg-cherry-500 mr-2"></div>
+                  <h3 className="font-bold text-base md:text-lg text-gray-800">與上次結果對比</h3>
+                </div>
+                <div className="overflow-x-auto scrollbar-cherry">
+                  <table className="w-full text-sm border-collapse">
+                    <thead>
+                      <tr className="bg-cherry-50">
+                        <th className="border p-2 text-left text-cherry-700">項目</th>
+                        <th className="border p-2 text-left text-cherry-700">當前</th>
+                        <th className="border p-2 text-left text-cherry-700">上次</th>
+                        <th className="border p-2 text-left text-cherry-700">差異</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[
+                        { key: 'hp', label: '氣血 (hp)' },
+                        { key: 'd_s', label: '氣盾 (d_s)' },
+                        { key: 'd_d', label: '防禦 (d_d)' },
+                        { key: 'd_f', label: '流派抵禦 (d_f)' },
+                        { key: 'd_e', label: '元素抗性 (d_e)' },
+                        { key: 'b_b', label: '格擋 (b_b)' },
+                        { key: 'baseDamage', label: '原傷害' },
+                        { key: 'finalDamage', label: '減傷後傷害' },
+                        { key: 'ehp', label: '有效氣血 (EHP)' },
+                        { key: 'totalReduction', label: '總減傷率' }
+                      ].map(({ key, label }) => {
+                        const currentValue = key in inputs ? inputs[key] : result[key];
+                        const previousValue = key in previousInputs ? previousInputs[key] : previousResult[key];
+                        const current = parseFloat(currentValue.replace('%', '')) || 0;
+                        const previous = parseFloat(previousValue.replace('%', '')) || 0;
+                        const diff = current - previous;
+                        const isPositive = diff > 0;
+                        return (
+                          <tr key={key} className="hover:bg-cherry-50">
+                            <td className="border p-2 text-gray-700">{label}</td>
+                            <td className="border p-2 font-medium">{currentValue}</td>
+                            <td className="border p-2">{previousValue}</td>
+                            <td className={`border p-2 font-medium ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
+                              {isPositive ? '↑' : '↓'} {Math.abs(diff).toFixed(2)}{key === 'totalReduction' ? '%' : ''}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="mt-4 p-3 bg-cherry-50 rounded-lg">
+                  <h4 className="font-bold text-cherry-700 mb-2 flex items-center">
+                    <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2h-1V9z" clipRule="evenodd" />
+                    </svg>
+                    配置建議
+                  </h4>
+                  <p className="text-xs text-gray-700">
+                    防禦和流派抵禦提升減傷率，適合高傷害場景；高氣血提升EHP，適合多次攻擊場景。若EHP差距不大，選擇攻擊高的配置。
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 mb-6">
+            <div className="result-card bg-white p-4 md:p-6 rounded-xl shadow-md border border-gray-100">
+              <div className="flex items-center mb-4">
+                <div className="w-1.5 h-5 rounded-full bg-cherry-500 mr-2"></div>
+                <h2 className="font-bold text-base md:text-lg text-gray-800">每200點屬性減傷收益</h2>
+              </div>
+              <div className="w-full h-[250px] sm:h-[300px] md:h-[350px]">
+                <Recharts.ResponsiveContainer width="100%" height="100%">
+                  <Recharts.LineChart data={deltaData}>
+                    <Recharts.CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <Recharts.XAxis 
+                      dataKey="point" 
+                      label={{ value: "屬性點", position: "insideBottom", offset: -5, fontSize: 12, fill: "#6b7280" }} 
+                      tick={{ fill: "#6b7280", fontSize: 12 }}
+                    />
+                    <Recharts.YAxis 
+                      label={{ value: "每200點收益 (%)", angle: -90, position: "insideLeft", fontSize: 12, fill: "#6b7280" }} 
+                      tickFormatter={(value) => (value * 100).toFixed(4)}
+                      tick={{ fill: "#6b7280", fontSize: 12 }}
+                    />
+                    <Recharts.Tooltip 
+                      content={<CustomTooltip isDelta={true} />}
+                    />
+                    <Recharts.Legend wrapperStyle={{ fontSize: 12 }} />
+                    <Recharts.Line type="monotone" dataKey="ds" name="氣盾" stroke="#3b82f6" strokeWidth={2} dot={false} />
+                    <Recharts.Line type="monotone" dataKey="dd" name="防禦" stroke="#10b981" strokeWidth={2} dot={false} />
+                    <Recharts.Line type="monotone" dataKey="df" name="流派抵禦" stroke="#8b5cf6" strokeWidth={2} dot={false} />
+                    <Recharts.Line type="monotone" dataKey="de" name="元素抗性" stroke="#14b8a6" strokeWidth={2} dot={false} />
+                    <Recharts.Line type="monotone" dataKey="bb" name="格擋" stroke="#f97316" strokeWidth={2} dot={false} />
+                  </Recharts.LineChart>
+                </Recharts.ResponsiveContainer>
+              </div>
+            </div>
+            
+            <div className="result-card bg-white p-4 md:p-6 rounded-xl shadow-md border border-gray-100">
+              <div className="flex items-center mb-4">
+                <div className="w-1.5 h-5 rounded-full bg-cherry-500 mr-2"></div>
+                <h2 className="font-bold text-base md:text-lg text-gray-800">減傷率隨屬性點增幅</h2>
+              </div>
+              <div className="w-full h-[250px] sm:h-[300px] md:h-[350px]">
+                <Recharts.ResponsiveContainer width="100%" height="100%">
+                  <Recharts.LineChart data={reductionData}>
+                    <Recharts.CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <Recharts.XAxis 
+                      dataKey="point" 
+                      label={{ value: "屬性點", position: "insideBottom", offset: -5, fontSize: 12, fill: "#6b7280" }} 
+                      tick={{ fill: "#6b7280", fontSize: 12 }}
+                    />
+                    <Recharts.YAxis 
+                      label={{ value: "總減傷率 (%)", angle: -90, position: "insideLeft", fontSize: 12, fill: "#6b7280" }} 
+                      tickFormatter={(value) => (value * 100).toFixed(2)}
+                      tick={{ fill: "#6b7280", fontSize: 12 }}
+                    />
+                    <Recharts.Tooltip 
+                      content={<CustomTooltip isDelta={false} />}
+                    />
+                    <Recharts.Legend wrapperStyle={{ fontSize: 12 }} />
+                    <Recharts.Line type="monotone" dataKey="ds" name="氣盾" stroke="#3b82f6" strokeWidth={2} dot={false} />
+                    <Recharts.Line type="monotone" dataKey="dd" name="防禦" stroke="#10b981" strokeWidth={2} dot={false} />
+                    <Recharts.Line type="monotone" dataKey="df" name="流派抵禦" stroke="#8b5cf6" strokeWidth={2} dot={false} />
+                    <Recharts.Line type="monotone" dataKey="de" name="元素抗性" stroke="#14b8a6" strokeWidth={2} dot={false} />
+                    <Recharts.Line type="monotone" dataKey="bb" name="格擋" stroke="#f97316" strokeWidth={2} dot={false} />
+                  </Recharts.LineChart>
+                </Recharts.ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+          
+          <div className="text-center text-xs text-gray-500 mb-4">
+            <p>防守計算器 © {new Date().getFullYear()} | 數據僅供參考</p>
+          </div>
+        </div>
+      );
+    };
+
+    // 主應用組件
+    const App = () => {
+      const [activeCalculator, setActiveCalculator] = useState('damage');
+
+      return (
+        <div className="flex min-h-screen">
+          <Sidebar setActiveCalculator={setActiveCalculator} />
+          <div className="flex-1 md:ml-64">
+            {activeCalculator === 'damage' ? <DamageCalculator /> : <HealingCalculator />}
+          </div>
+        </div>
+      );
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(<App />);
+  </script>
+</body>
+</html>
