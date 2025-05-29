@@ -729,8 +729,8 @@
         const p_c = (115 * c + 90) / (c + 940) / 100 + toNum(gold_i);
         const r_h = 143 * toNum(h) / (toNum(h) + 3678) / 100;
         const r_b = 143 * toNum(b_b) / (toNum(b_b) + 3678) / 100;
-        const blockPrecentage = Math.max(0, r_b - r_h);
         const p_h = Math.min(1, 0.95 + r_h - r_b);
+        const blockPrecentage = 1 - p_h;
         const m_c = 1 + p_c * (toNum(d_c) - 1 - toNum(d_c_defense));
         const d_mul = m_c * p_h + 0.5 * (1 - p_h);
         const G = toNum(b_s) >= toNum(d_s)
@@ -816,8 +816,8 @@
           const p_c = (115 * c + 90) / (c + 940) / 100 + toNum(gold_i);
           const r_h = 143 * toNum(h) / (toNum(h) + 3678) / 100;
           const r_b = 143 * toNum(b_b) / (toNum(b_b) + 3678) / 100;
-          const blockPrecentage = Math.max(0, r_b - r_h);
           const p_h = Math.min(1, 0.95 + r_h - r_b);
+          const blockPrecentage = 1 - p_h;
           const m_c = 1 + p_c * (toNum(d_c) - 1 - toNum(d_c_defense));
           const d_mul = m_c * p_h + 0.5 * (1 - p_h);
           const G = toNum(b_s) >= toNum(d_s)
