@@ -1450,8 +1450,8 @@
           ehp: ehp.toFixed(2),
           base_elementalDamage: base_elementalDamage.toFixed(2),
           elementalDamage: elementalDamage.toFixed(2),
-          base_elementalDamagePrecentage: base_elementalDamagePrecentage.toFixed(2) + "%",
-          elementalDamagePrecentage: elementalDamagePrecentage.toFixed(2) + "%",
+          base_elementalDamagePrecentage: (base_elementalDamagePrecentage *100).toFixed(2) + "%",
+          elementalDamagePrecentage: (elementalDamagePrecentage *100).toFixed(2) + "%",
 
         };
       };
