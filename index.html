@@ -1,4 +1,4 @@
-<script type="text/javascript">
+<html lang="zh-TW"><head><script type="text/javascript">
   var gk_isXlsx = false;
   var gk_xlsxFileLookup = {};
   var gk_fileData = {};
@@ -38,10 +38,10 @@
     return gk_fileData[filename] || "";
   }
 </script>
-<!DOCTYPE html>
-<html lang="zh-TW">
 
-<head>
+
+
+
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>遊戲計算器</title>
@@ -663,11 +663,19 @@
         b_c_defense: "550", d_c_defense: "0", flow_resist_percent: "0", damage_reduction: "0",
         skill_damage_reduction: "0",
         lambda_1: "358", lambda_2: "0.359", lambda_3: "2860", lambda_4: "531", W: "1",
-        gold_i: "0", fire_i: "0"
+        gold_i: "0"
       });
       const [inputErrors, setInputErrors] = useState({});
       const [previousResult, setPreviousResult] = useState(null);
       const [previousInputs, setPreviousInputs] = useState(null);
+      // 新增可見性狀態，控制曲線顯示
+      const [visibility, setVisibility] = useState({
+        ds: true, // 氣盾
+        dd: true, // 防禦
+        df: true, // 流派抵禦
+        de: true, // 元素抗性
+        bb: true  // 格擋
+      });
 
       const goldOptions = [
         { value: "0", label: "無金周天" },
@@ -679,13 +687,6 @@
       const elementWeaknessOptions = [
         { value: "1", label: "無元素弱點" },
         { value: "1.1", label: "碎夢大特" },
-      ];
-
-      const fireOptions = [
-        { value: "0", label: "無金周天" },
-        { value: "0.03", label: "金周天1級" },
-        { value: "0.04", label: "金周天2級" },
-        { value: "0.05", label: "金周天3級" },
       ];
 
       const handleChange = (e) => {
@@ -712,6 +713,11 @@
         setPreviousInputs({ ...inputs });
       };
 
+      // 切換曲線可見性
+      const toggleVisibility = (key) => {
+        setVisibility((prev) => ({ ...prev, [key]: !prev[key] }));
+      };
+
       const toNum = (val) => {
         const num = parseFloat(val);
         return isNaN(num) ? 0 : num;
@@ -730,7 +736,6 @@
         const r_h = 143 * toNum(h) / (toNum(h) + 3678) / 100;
         const r_b = 143 * toNum(b_b) / (toNum(b_b) + 3678) / 100;
         const p_h = Math.min(1, 0.95 + r_h - r_b);
-        const blockPrecentage = 1 - p_h;
         const m_c = 1 + p_c * (toNum(d_c) - 1 - toNum(d_c_defense));
         const d_mul = m_c * p_h + 0.5 * (1 - p_h);
         const G = toNum(b_s) >= toNum(d_s)
@@ -744,7 +749,6 @@
           : 0;
         const e = toNum(d_e) - toNum(b_e);
         const beta = e > 0 ? e / (e + toNum(lambda_4)) : 0;
-
         const c_original = toNum(b_c);
         const p_c_original = (115 * c_original + 90) / (c_original + 940) / 100 + toNum(gold_i);
         const r_h_original = r_h;
@@ -756,8 +760,6 @@
         const gamma_original = 0;
         const A_original = toNum(D) + toNum(R) + G_original;
         const beta_original = 0;
-        const gamma_original_1 = 1 - 0;
-        const beta_original_1 = 1 - 0;
 
         const baseDamage = (
           (toNum(skill_multiplier) / 100) * (((toNum(lambda_1) + toNum(lambda_2) * A_original) * (1 - gamma_original)) +
@@ -777,14 +779,12 @@
           p_c: (p_c * 100).toFixed(2) + "%",
           r_h: (r_h * 100).toFixed(2) + "%",
           r_b: (r_b * 100).toFixed(2) + "%",
-          blockPrecentage: (blockPrecentage * 100).toFixed(2) + "%",
           p_h: p_h.toFixed(4),
           m_c: m_c.toFixed(4),
           d_mul: d_mul.toFixed(4),
           G: G.toFixed(2),
           A: A.toFixed(2),
           gamma: (gamma * 100).toFixed(2) + "%",
-
           beta: (beta * 100).toFixed(2) + "%",
           c_original: c_original.toFixed(2),
           p_c_original: (p_c_original * 100).toFixed(2) + "%",
@@ -797,8 +797,6 @@
           A_original: A_original.toFixed(2),
           gamma_original: (gamma_original * 100).toFixed(2) + "%",
           beta_original: (beta_original * 100).toFixed(2) + "%",
-          gamma_original_1: (gamma_original * 100).toFixed(2) + "%",
-          beta_original_1: (beta_original * 100).toFixed(2) + "%",
           baseDamage: baseDamage.toFixed(2),
           finalDamage: finalDamage.toFixed(2),
           totalReduction: (totalReduction * 100).toFixed(2) + "%",
@@ -817,7 +815,6 @@
           const r_h = 143 * toNum(h) / (toNum(h) + 3678) / 100;
           const r_b = 143 * toNum(b_b) / (toNum(b_b) + 3678) / 100;
           const p_h = Math.min(1, 0.95 + r_h - r_b);
-          const blockPrecentage = 1 - p_h;
           const m_c = 1 + p_c * (toNum(d_c) - 1 - toNum(d_c_defense));
           const d_mul = m_c * p_h + 0.5 * (1 - p_h);
           const G = toNum(b_s) >= toNum(d_s)
@@ -829,13 +826,12 @@
           const gamma = toNum(d_d) - toNum(b_d) > 0
             ? (toNum(d_d) - toNum(b_d)) / (toNum(d_d) - toNum(b_d) + toNum(lambda_3))
             : 0;
-          const gamma_1 = 1 - toNum(gamma);
           const e = toNum(d_e) - toNum(b_e);
           const beta = e > 0 ? e / (e + toNum(lambda_4)) : 0;
-          const f_theta = (toNum(lambda_1) + toNum(lambda_2) * A) * (1 - gamma);
-          const g_theta = toNum(W) * toNum(lambda_2) * toNum(E) * (1 - beta);
-          const d_base = f_theta + g_theta;
-          return d_base * d_mul * (1 + toNum(flow_percent) - toNum(flow_resist_percent)) * (1 + toNum(damage_increase) - toNum(damage_reduction));
+          return (
+            (toNum(inputs.skill_multiplier) / 100) * (((toNum(lambda_1) + toNum(lambda_2) * A) * (1 - gamma)) +
+              toNum(W) * toNum(lambda_2) * toNum(E) * (1 - beta))
+          ) * d_mul * (1 + toNum(flow_percent) - toNum(flow_resist_percent)) * (1 + toNum(damage_increase) - toNum(damage_reduction));
         };
 
         const d_original = calculateDamage(
@@ -1085,7 +1081,6 @@
                   { label: "剩餘氣盾", value: result.G_original },
                   { label: "防禦傷害減免", value: result.gamma_original },
                   { label: "元素傷害減免", value: result.beta_original }
-
                 ].map(({ label, value }) => (
                   <div key={label} className="bg-gray-50 p-3 rounded-lg">
                     <p className="text-xs text-gray-600">{label}</p>
@@ -1094,7 +1089,6 @@
                 ))}
               </div>
             </div>
-
 
             <div className="result-card bg-white p-4 md:p-6 rounded-xl shadow-md border border-gray-100">
               <div className="flex items-center mb-4">
@@ -1106,7 +1100,7 @@
                   { label: "修正會心", value: result.c },
                   { label: "會心率", value: result.p_c },
                   { label: "命中修正", value: result.r_h },
-                  { label: "格擋率", value: result.blockPrecentage },
+                  { label: "格擋率", value: result.r_b },
                   { label: "命中增幅倍率", value: result.p_h },
                   { label: "會心傷害倍率", value: result.m_c },
                   { label: "傷害倍率", value: result.d_mul },
@@ -1219,6 +1213,26 @@
                 <div className="w-1.5 h-5 rounded-full bg-cherry-500 mr-2"></div>
                 <h2 className="font-bold text-base md:text-lg text-gray-800">每200點屬性減傷收益</h2>
               </div>
+              {/* 新增勾選框 */}
+              <div className="flex flex-wrap gap-4 mb-4">
+                {[
+                  { key: 'ds', label: '氣盾', color: '#3b82f6' },
+                  { key: 'dd', label: '防禦', color: '#10b981' },
+                  { key: 'df', label: '流派抵禦', color: '#8b5cf6' },
+                  { key: 'de', label: '元素抗性', color: '#14b8a6' },
+                  { key: 'bb', label: '格擋', color: '#f97316' }
+                ].map(({ key, label, color }) => (
+                  <label key={key} className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={visibility[key]}
+                      onChange={() => toggleVisibility(key)}
+                      className="mr-2"
+                    />
+                    <span style={{ color }}>{label}</span>
+                  </label>
+                ))}
+              </div>
               <div className="w-full h-[250px] sm:h-[300px] md:h-[350px]">
                 <Recharts.ResponsiveContainer width="100%" height="100%">
                   <Recharts.LineChart data={deltaData}>
@@ -1233,15 +1247,14 @@
                       tickFormatter={(value) => (value * 100).toFixed(4)}
                       tick={{ fill: "#6b7280", fontSize: 12 }}
                     />
-                    <Recharts.Tooltip
-                      content={<CustomTooltip isDelta={true} />}
-                    />
+                    <Recharts.Tooltip content={<CustomTooltip isDelta={true} />} />
                     <Recharts.Legend wrapperStyle={{ fontSize: 12 }} />
-                    <Recharts.Line type="monotone" dataKey="ds" name="氣盾" stroke="#3b82f6" strokeWidth={2} dot={false} />
-                    <Recharts.Line type="monotone" dataKey="dd" name="防禦" stroke="#10b981" strokeWidth={2} dot={false} />
-                    <Recharts.Line type="monotone" dataKey="df" name="流派抵禦" stroke="#8b5cf6" strokeWidth={2} dot={false} />
-                    <Recharts.Line type="monotone" dataKey="de" name="元素抗性" stroke="#14b8a6" strokeWidth={2} dot={false} />
-                    <Recharts.Line type="monotone" dataKey="bb" name="格擋" stroke="#f97316" strokeWidth={2} dot={false} />
+                    {/* 根據可見性動態渲染曲線 */}
+                    {visibility.ds && <Recharts.Line type="monotone" dataKey="ds" name="氣盾" stroke="#3b82f6" strokeWidth={2} dot={false} />}
+                    {visibility.dd && <Recharts.Line type="monotone" dataKey="dd" name="防禦" stroke="#10b981" strokeWidth={2} dot={false} />}
+                    {visibility.df && <Recharts.Line type="monotone" dataKey="df" name="流派抵禦" stroke="#8b5cf6" strokeWidth={2} dot={false} />}
+                    {visibility.de && <Recharts.Line type="monotone" dataKey="de" name="元素抗性" stroke="#14b8a6" strokeWidth={2} dot={false} />}
+                    {visibility.bb && <Recharts.Line type="monotone" dataKey="bb" name="格擋" stroke="#f97316" strokeWidth={2} dot={false} />}
                   </Recharts.LineChart>
                 </Recharts.ResponsiveContainer>
               </div>
@@ -1251,6 +1264,26 @@
               <div className="flex items-center mb-4">
                 <div className="w-1.5 h-5 rounded-full bg-cherry-500 mr-2"></div>
                 <h2 className="font-bold text-base md:text-lg text-gray-800">減傷率隨屬性點增幅</h2>
+              </div>
+              {/* 新增勾選框 */}
+              <div className="flex flex-wrap gap-4 mb-4">
+                {[
+                  { key: 'ds', label: '氣盾', color: '#3b82f6' },
+                  { key: 'dd', label: '防禦', color: '#10b981' },
+                  { key: 'df', label: '流派抵禦', color: '#8b5cf6' },
+                  { key: 'de', label: '元素抗性', color: '#14b8a6' },
+                  { key: 'bb', label: '格擋', color: '#f97316' }
+                ].map(({ key, label, color }) => (
+                  <label key={key} className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={visibility[key]}
+                      onChange={() => toggleVisibility(key)}
+                      className="mr-2"
+                    />
+                    <span style={{ color }}>{label}</span>
+                  </label>
+                ))}
               </div>
               <div className="w-full h-[250px] sm:h-[300px] md:h-[350px]">
                 <Recharts.ResponsiveContainer width="100%" height="100%">
@@ -1266,15 +1299,14 @@
                       tickFormatter={(value) => (value * 100).toFixed(2)}
                       tick={{ fill: "#6b7280", fontSize: 12 }}
                     />
-                    <Recharts.Tooltip
-                      content={<CustomTooltip isDelta={false} />}
-                    />
+                    <Recharts.Tooltip content={<CustomTooltip isDelta={false} />} />
                     <Recharts.Legend wrapperStyle={{ fontSize: 12 }} />
-                    <Recharts.Line type="monotone" dataKey="ds" name="氣盾" stroke="#3b82f6" strokeWidth={2} dot={false} />
-                    <Recharts.Line type="monotone" dataKey="dd" name="防禦" stroke="#10b981" strokeWidth={2} dot={false} />
-                    <Recharts.Line type="monotone" dataKey="df" name="流派抵禦" stroke="#8b5cf6" strokeWidth={2} dot={false} />
-                    <Recharts.Line type="monotone" dataKey="de" name="元素抗性" stroke="#14b8a6" strokeWidth={2} dot={false} />
-                    <Recharts.Line type="monotone" dataKey="bb" name="格擋" stroke="#f97316" strokeWidth={2} dot={false} />
+                    {/* 根據可見性動態渲染曲線 */}
+                    {visibility.ds && <Recharts.Line type="monotone" dataKey="ds" name="氣盾" stroke="#3b82f6" strokeWidth={2} dot={false} />}
+                    {visibility.dd && <Recharts.Line type="monotone" dataKey="dd" name="防禦" stroke="#10b981" strokeWidth={2} dot={false} />}
+                    {visibility.df && <Recharts.Line type="monotone" dataKey="df" name="流派抵禦" stroke="#8b5cf6" strokeWidth={2} dot={false} />}
+                    {visibility.de && <Recharts.Line type="monotone" dataKey="de" name="元素抗性" stroke="#14b8a6" strokeWidth={2} dot={false} />}
+                    {visibility.bb && <Recharts.Line type="monotone" dataKey="bb" name="格擋" stroke="#f97316" strokeWidth={2} dot={false} />}
                   </Recharts.LineChart>
                 </Recharts.ResponsiveContainer>
               </div>
@@ -1282,11 +1314,12 @@
           </div>
 
           <div className="text-center text-xs text-gray-500 mb-4">
-            <p>防守計算器 © {new Date().getFullYear()} | 數據僅供參考</p>
+            <p>防守屬性收益計算器 © {new Date().getFullYear()} | 數據僅供參考</p>
           </div>
         </div>
       );
     };
+
     const DamageCalculator2 = () => {
       const [inputs, setInputs] = useState({
         skill_multiplier: "1518",
@@ -1302,6 +1335,13 @@
       const [inputErrors, setInputErrors] = useState({});
       const [previousResult, setPreviousResult] = useState(null);
       const [previousInputs, setPreviousInputs] = useState(null);
+      // 新增可見性狀態，控制曲線顯示
+      const [visibility, setVisibility] = useState({
+        b_d: true, // 破防
+        b_e: true, // 忽視元素抗性
+        D: true, // 攻擊
+        E: true, // 元素攻擊
+      });
 
       const goldOptions = [
         { value: "0", label: "無金周天" },
@@ -1450,8 +1490,8 @@
           ehp: ehp.toFixed(2),
           base_elementalDamage: base_elementalDamage.toFixed(2),
           elementalDamage: elementalDamage.toFixed(2),
-          base_elementalDamagePrecentage: (base_elementalDamagePrecentage *100).toFixed(2) + "%",
-          elementalDamagePrecentage: (elementalDamagePrecentage *100).toFixed(2) + "%",
+          base_elementalDamagePrecentage: (base_elementalDamagePrecentage * 100).toFixed(2) + "%",
+          elementalDamagePrecentage: (elementalDamagePrecentage * 100).toFixed(2) + "%",
 
         };
       };
@@ -1871,7 +1911,26 @@
             <div className="result-card bg-white p-4 md:p-6 rounded-xl shadow-md border border-gray-100">
               <div className="flex items-center mb-4">
                 <div className="w-1.5 h-5 rounded-full bg-cherry-500 mr-2"></div>
-                <h2 className="font-bold text-base md:text-lg text-gray-800">每200點屬性收益對比</h2>
+                <h2 className="font-bold text-base md:text-lg text-gray-800">每200點屬性減傷收益</h2>
+              </div>
+              {/* 新增勾選框 */}
+              <div className="flex flex-wrap gap-4 mb-4">
+                {[
+                  { key: 'b_d', label: '破防', color: '#3b82f6' },
+                  { key: 'b_e', label: '忽視元素抗性', color: '#10b981' },
+                  { key: 'D', label: '攻擊', color: '#8b5cf6' },
+                  { key: 'E', label: '元素攻擊', color: '#f97316' }
+                ].map(({ key, label, color }) => (
+                  <label key={key} className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={visibility[key]}
+                      onChange={() => toggleVisibility(key)}
+                      className="mr-2"
+                    />
+                    <span style={{ color }}>{label}</span>
+                  </label>
+                ))}
               </div>
               <div className="w-full h-[250px] sm:h-[300px] md:h-[350px]">
                 <Recharts.ResponsiveContainer width="100%" height="100%">
@@ -1887,14 +1946,13 @@
                       tickFormatter={(value) => (value * 100).toFixed(4)}
                       tick={{ fill: "#6b7280", fontSize: 12 }}
                     />
-                    <Recharts.Tooltip
-                      content={<CustomTooltip isDelta={true} />}
-                    />
+                    <Recharts.Tooltip content={<CustomTooltip isDelta={true} />} />
                     <Recharts.Legend wrapperStyle={{ fontSize: 12 }} />
-                    <Recharts.Line type="monotone" dataKey="b_d" name="破防" stroke="#3b82f6" strokeWidth={2} dot={false} />
-                    <Recharts.Line type="monotone" dataKey="b_e" name="忽視元素抗性" stroke="#10b981" strokeWidth={2} dot={false} />
-                    <Recharts.Line type="monotone" dataKey="D" name="攻擊" stroke="#8b5cf6" strokeWidth={2} dot={false} />
-                    <Recharts.Line type="monotone" dataKey="E" name="元素攻擊" stroke="#14b8a6" strokeWidth={2} dot={false} />
+                    {/* 根據可見性動態渲染曲線 */}
+                    {visibility.b_d && <Recharts.Line type="monotone" dataKey="b_d" name="破防" stroke="#3b82f6" strokeWidth={2} dot={false} />}
+                    {visibility.b_e && <Recharts.Line type="monotone" dataKey="b_e" name="忽視元素抗性" stroke="#10b981" strokeWidth={2} dot={false} />}
+                    {visibility.D && <Recharts.Line type="monotone" dataKey="D" name="攻擊" stroke="#8b5cf6" strokeWidth={2} dot={false} />}
+                    {visibility.E && <Recharts.Line type="monotone" dataKey="E" name="元素攻擊" stroke="#f97316" strokeWidth={2} dot={false} />}
                   </Recharts.LineChart>
                 </Recharts.ResponsiveContainer>
               </div>
@@ -1904,6 +1962,25 @@
               <div className="flex items-center mb-4">
                 <div className="w-1.5 h-5 rounded-full bg-cherry-500 mr-2"></div>
                 <h2 className="font-bold text-base md:text-lg text-gray-800">遞增屬性收益走勢</h2>
+              </div>
+              {/* 新增勾選框 */}
+              <div className="flex flex-wrap gap-4 mb-4">
+                {[
+                  { key: 'b_d', label: '破防', color: '#3b82f6' },
+                  { key: 'b_e', label: '忽視元素抗性', color: '#10b981' },
+                  { key: 'D', label: '攻擊', color: '#8b5cf6' },
+                  { key: 'E', label: '元素攻擊', color: '#f97316' }
+                ].map(({ key, label, color }) => (
+                  <label key={key} className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={visibility[key]}
+                      onChange={() => toggleVisibility(key)}
+                      className="mr-2"
+                    />
+                    <span style={{ color }}>{label}</span>
+                  </label>
+                ))}
               </div>
               <div className="w-full h-[250px] sm:h-[300px] md:h-[350px]">
                 <Recharts.ResponsiveContainer width="100%" height="100%">
@@ -1919,14 +1996,13 @@
                       tickFormatter={(value) => (value * 100).toFixed(2)}
                       tick={{ fill: "#6b7280", fontSize: 12 }}
                     />
-                    <Recharts.Tooltip
-                      content={<CustomTooltip isDelta={false} />}
-                    />
+                    <Recharts.Tooltip content={<CustomTooltip isDelta={false} />} />
                     <Recharts.Legend wrapperStyle={{ fontSize: 12 }} />
-                    <Recharts.Line type="monotone" dataKey="b_d" name="破防" stroke="#3b82f6" strokeWidth={2} dot={false} />
-                    <Recharts.Line type="monotone" dataKey="b_e" name="忽視元素抗性" stroke="#10b981" strokeWidth={2} dot={false} />
-                    <Recharts.Line type="monotone" dataKey="D" name="攻擊" stroke="#8b5cf6" strokeWidth={2} dot={false} />
-                    <Recharts.Line type="monotone" dataKey="E" name="元素攻擊" stroke="#14b8a6" strokeWidth={2} dot={false} />
+                    {/* 根據可見性動態渲染曲線 */}
+                    {visibility.b_d && <Recharts.Line type="monotone" dataKey="b_d" name="破防" stroke="#3b82f6" strokeWidth={2} dot={false} />}
+                    {visibility.b_e && <Recharts.Line type="monotone" dataKey="b_e" name="忽視元素抗性" stroke="#10b981" strokeWidth={2} dot={false} />}
+                    {visibility.D && <Recharts.Line type="monotone" dataKey="D" name="攻擊" stroke="#8b5cf6" strokeWidth={2} dot={false} />}
+                    {visibility.E && <Recharts.Line type="monotone" dataKey="E" name="元素攻擊" stroke="#f97316" strokeWidth={2} dot={false} />}
                   </Recharts.LineChart>
                 </Recharts.ResponsiveContainer>
               </div>
@@ -1939,24 +2015,62 @@
         </div>
       );
     };
-    // Main App Component
+
+    // Footer Component
+    const Footer = () => {
+      return (
+        <footer className="bg-transparent text-gray-700 p-4 text-center mt-6">
+          <div className="max-w-3xl mx-auto">
+            <div className="text-sm text-left md:text-center">
+              <p className="font-semibold mb-1">櫻桃碎碎念</p>
+              <p>
+                公式參考了
+                <a
+                  href="https://m.bilibili.com/opus/979579497904865287"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-cherry-600 hover:underline"
+                >
+                  折字愿为安
+                </a>
+                和
+                <a
+                  href="https://b23.tv/C4Iq2IZ"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-cherry-600 hover:underline"
+                >
+                  进团先发秒伤
+                </a>
+                兩位老師的專欄。經過驗證適用於台服目前版本。考慮到很多人不太喜歡數學，所以才整合成計算器。本來還想加上對塔傷害部分，但因為我一個人難以驗證，結果還是放棄了。後續可能大概還會更新內功和周天，可能吧我也不知道。
+              </p>
+            </div>
+          </div>
+        </footer>
+      );
+    };
+
+    // App Component
     const App = () => {
-      const [activeCalculator, setActiveCalculator] = useState(null); // ← 初始為 null 顯示選單
+      const [activeCalculator, setActiveCalculator] = useState(null);
 
       return (
-        <div className="flex min-h-screen">
-          <Sidebar setActiveCalculator={setActiveCalculator} />
-          <div className="flex-1 md:ml-64">
-            {!activeCalculator ? (
-              <HomeMenu setActiveCalculator={setActiveCalculator} />
-            ) : activeCalculator === 'damage' ? (
-              <DamageCalculator />
-            ) : activeCalculator === 'healing' ? (
-              <HealingCalculator />
-            ) : (
-              <DamageCalculator2 />
-            )}
+        <div className="flex min-h-screen flex-col">
+          <div className="flex flex-1">
+            <Sidebar setActiveCalculator={setActiveCalculator} />
+            <div className="flex-1 md:ml-64">
+              {!activeCalculator ? (
+                <HomeMenu setActiveCalculator={setActiveCalculator} />
+              ) : activeCalculator === 'damage' ? (
+                <DamageCalculator />
+              ) : activeCalculator === 'healing' ? (
+                <HealingCalculator />
+              ) : (
+                <DamageCalculator2 />
+              )}
+            </div>
           </div>
+          <Footer />
         </div>
       );
     };
@@ -1967,6 +2081,6 @@
 
 
   </script>
-</body>
 
-</html>
+
+</body></html>
