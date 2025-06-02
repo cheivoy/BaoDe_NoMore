@@ -1,43 +1,46 @@
-<html lang="zh-TW"><head><script type="text/javascript">
-  var gk_isXlsx = false;
-  var gk_xlsxFileLookup = {};
-  var gk_fileData = {};
-  function filledCell(cell) {
-    return cell !== '' && cell != null;
-  }
-  function loadFileData(filename) {
-    if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
-      try {
-        var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
-        var firstSheetName = workbook.SheetNames[0];
-        var worksheet = workbook.Sheets[firstSheetName];
+<html lang="zh-TW">
 
-        // Convert sheet to JSON to filter blank rows
-        var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
-        // Filter out blank rows (rows where all cells are empty, null, or undefined)
-        var filteredData = jsonData.filter(row => row.some(filledCell));
-
-        // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
-        var headerRowIndex = filteredData.findIndex((row, index) =>
-          row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
-        );
-        // Fallback
-        if (headerRowIndex === -1 || headerRowIndex > 25) {
-          headerRowIndex = 0;
-        }
-
-        // Convert filtered JSON back to CSV
-        var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
-        csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
-        return csv;
-      } catch (e) {
-        console.error(e);
-        return "";
-      }
+<head>
+  <script type="text/javascript">
+    var gk_isXlsx = false;
+    var gk_xlsxFileLookup = {};
+    var gk_fileData = {};
+    function filledCell(cell) {
+      return cell !== '' && cell != null;
     }
-    return gk_fileData[filename] || "";
-  }
-</script>
+    function loadFileData(filename) {
+      if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+        try {
+          var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+          var firstSheetName = workbook.SheetNames[0];
+          var worksheet = workbook.Sheets[firstSheetName];
+
+          // Convert sheet to JSON to filter blank rows
+          var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+          // Filter out blank rows (rows where all cells are empty, null, or undefined)
+          var filteredData = jsonData.filter(row => row.some(filledCell));
+
+          // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+          var headerRowIndex = filteredData.findIndex((row, index) =>
+            row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+          );
+          // Fallback
+          if (headerRowIndex === -1 || headerRowIndex > 25) {
+            headerRowIndex = 0;
+          }
+
+          // Convert filtered JSON back to CSV
+          var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+          csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+          return csv;
+        } catch (e) {
+          console.error(e);
+          return "";
+        }
+      }
+      return gk_fileData[filename] || "";
+    }
+  </script>
 
 
 
@@ -1343,6 +1346,13 @@
         E: true, // 元素攻擊
       });
 
+      const toggleVisibility = (key) => {
+        setVisibility((prev) => ({
+          ...prev,
+          [key]: !prev[key],
+        }));
+      };
+
       const goldOptions = [
         { value: "0", label: "無金周天" },
         { value: "0.03", label: "金周天1級" },
@@ -1911,7 +1921,7 @@
             <div className="result-card bg-white p-4 md:p-6 rounded-xl shadow-md border border-gray-100">
               <div className="flex items-center mb-4">
                 <div className="w-1.5 h-5 rounded-full bg-cherry-500 mr-2"></div>
-                <h2 className="font-bold text-base md:text-lg text-gray-800">每200點屬性減傷收益</h2>
+                <h2 className="font-bold text-base md:text-lg text-gray-800">每200點屬性增傷收益</h2>
               </div>
               {/* 新增勾選框 */}
               <div className="flex flex-wrap gap-4 mb-4">
@@ -1968,7 +1978,6 @@
                 {[
                   { key: 'b_d', label: '破防', color: '#3b82f6' },
                   { key: 'b_e', label: '忽視元素抗性', color: '#10b981' },
-                  { key: 'D', label: '攻擊', color: '#8b5cf6' },
                   { key: 'E', label: '元素攻擊', color: '#f97316' }
                 ].map(({ key, label, color }) => (
                   <label key={key} className="flex items-center">
@@ -2001,7 +2010,6 @@
                     {/* 根據可見性動態渲染曲線 */}
                     {visibility.b_d && <Recharts.Line type="monotone" dataKey="b_d" name="破防" stroke="#3b82f6" strokeWidth={2} dot={false} />}
                     {visibility.b_e && <Recharts.Line type="monotone" dataKey="b_e" name="忽視元素抗性" stroke="#10b981" strokeWidth={2} dot={false} />}
-                    {visibility.D && <Recharts.Line type="monotone" dataKey="D" name="攻擊" stroke="#8b5cf6" strokeWidth={2} dot={false} />}
                     {visibility.E && <Recharts.Line type="monotone" dataKey="E" name="元素攻擊" stroke="#f97316" strokeWidth={2} dot={false} />}
                   </Recharts.LineChart>
                 </Recharts.ResponsiveContainer>
@@ -2081,4 +2089,6 @@
   </script>
 
 
-</body></html>
+</body>
+
+</html>
