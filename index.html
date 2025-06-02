@@ -555,7 +555,7 @@
           setInputErrors((prev) => ({ ...prev, [name]: '輸入值不能為負數' }));
           return;
         }
-        if (value > 100000) {
+        if (value > 1000000) {
           setInputErrors((prev) => ({ ...prev, [name]: '輸入值過大，最大為100000' }));
           return;
         }
@@ -623,7 +623,7 @@
                     value={inputs[key]}
                     onChange={handleChange}
                     min="0"
-                    max="100000"
+                    max="1000000"
                     className={`input-focus border ${inputErrors[key] ? 'border-red-500' : 'border-gray-200'} rounded-lg p-2 text-sm w-full`}
                     aria-label={label}
                   />
@@ -702,8 +702,8 @@
             setInputErrors((prev) => ({ ...prev, [name]: '輸入值不能為負數' }));
             return;
           }
-          if (value > 100000) {
-            setInputErrors((prev) => ({ ...prev, [name]: '輸入值過大，最大為100000' }));
+          if (value > 1000000) {
+            setInputErrors((prev) => ({ ...prev, [name]: '輸入值過大，最大為1000000' }));
             return;
           }
           setInputs((prev) => ({ ...prev, [name]: value }));
@@ -978,7 +978,7 @@
                         value={inputs[key]}
                         onChange={handleChange}
                         min="0"
-                        max="100000"
+                        max="1000000"
                         className={`input-focus border ${inputErrors[key] ? 'border-red-500' : 'border-gray-200'} rounded-lg p-2 text-sm w-full`}
                         aria-label={label}
                       />
@@ -1029,7 +1029,7 @@
                       value={inputs[key]}
                       onChange={handleChange}
                       min="0"
-                      max="100000"
+                      max="1000000"
                       className={`input-focus border ${inputErrors[key] ? 'border-red-500' : 'border-gray-200'} rounded-lg p-2 text-sm w-full`}
                       aria-label={label}
                     />
@@ -1375,8 +1375,8 @@
             setInputErrors((prev) => ({ ...prev, [name]: '輸入值不能為負數' }));
             return;
           }
-          if (value > 100000) {
-            setInputErrors((prev) => ({ ...prev, [name]: '輸入值過大，最大為100000' }));
+          if (value > 1000000) {
+            setInputErrors((prev) => ({ ...prev, [name]: '輸入值過大，最大為1000000' }));
             return;
           }
           setInputs((prev) => ({ ...prev, [name]: value }));
@@ -1681,7 +1681,7 @@
                         value={inputs[key]}
                         onChange={handleChange}
                         min="0"
-                        max="100000"
+                        max="1000000"
                         className={`input-focus border ${inputErrors[key] ? 'border-red-500' : 'border-gray-200'} rounded-lg p-2 text-sm w-full`}
                         aria-label={label}
                       />
@@ -1732,7 +1732,7 @@
                       value={inputs[key]}
                       onChange={handleChange}
                       min="0"
-                      max="100000"
+                      max="1000000"
                       className={`input-focus border ${inputErrors[key] ? 'border-red-500' : 'border-gray-200'} rounded-lg p-2 text-sm w-full`}
                       aria-label={label}
                     />
