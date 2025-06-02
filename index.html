@@ -1539,7 +1539,7 @@
         );
 
         const calculateIncrease = (attr, value) => {
-          const modifiedInputs = { ...inputs, [attr]: toNum(inputs[attr]) + value };
+          const modifiedInputs = { ...inputs, [attr]: value };
           const d_new = calculateDamage(
             toNum(modifiedInputs.D),
             toNum(modifiedInputs.b_d),
