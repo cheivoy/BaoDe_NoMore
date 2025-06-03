@@ -1342,16 +1342,12 @@
       const [visibility, setVisibility] = useState({
         b_d: true, // 破防
         b_e: true, // 忽視元素抗性
+        R: true, // 克制
+        h: true, // 命中
         D: true, // 攻擊
         E: true, // 元素攻擊
       });
 
-      const toggleVisibility = (key) => {
-        setVisibility((prev) => ({
-          ...prev,
-          [key]: !prev[key],
-        }));
-      };
 
       const goldOptions = [
         { value: "0", label: "無金周天" },
@@ -1387,6 +1383,10 @@
       const saveCurrentResult = () => {
         setPreviousResult(calculate(inputs));
         setPreviousInputs({ ...inputs });
+      };
+
+      const toggleVisibility = (key) => {
+        setVisibility((prev) => ({ ...prev, [key]: !prev[key] }));
       };
 
       const toNum = (val) => {
@@ -1508,81 +1508,96 @@
 
       const generateChartData = (inputs) => {
         const attribute_points = Array.from({ length: 51 }, (_, i) => i * 200);
-        const increases = { b_d: [], b_e: [], D: [], E: [], R: [] };
-        const delta_increases = { b_d: [], b_e: [], D: [], E: [], R: [] };
+        const increases = { b_d: [], b_e: [], D: [], E: [], R: [], b_s: [], h: [] };
+        const delta_increases = { b_d: [], b_e: [], D: [], E: [], R: [], b_s: [], h: [] };
 
-        const calculateDamage = (D, b_d, b_e, E, R) => {
+        const calculateDamage = (D, E, R, b_d, b_e, b_s, h) => {
           const c = toNum(inputs.b_c) - toNum(inputs.b_c_defense);
           const p_c = (115 * c + 90) / (c + 940) / 100 + toNum(inputs.gold_i);
-          const r_h = 143 * toNum(inputs.h) / (toNum(inputs.h) + 3678) / 100;
+          const r_h = 143 * toNum(h || inputs.h) / (toNum(h || inputs.h) + 3678) / 100;
           const r_b = 143 * toNum(inputs.b_b) / (toNum(inputs.b_b) + 3678) / 100;
           const p_h = Math.min(1, 0.95 + r_h - r_b);
           const m_c = 1 + p_c * (toNum(inputs.d_c) - 1 - toNum(inputs.d_c_defense));
           const d_mul = m_c * p_h + 0.5 * (1 - p_h);
-          const G = toNum(inputs.b_s) >= toNum(inputs.d_s)
+          const G = toNum(b_s || inputs.b_s) >= toNum(inputs.d_s)
             ? 0
-            : toNum(inputs.d_s) / 3 <= toNum(inputs.b_s)
-              ? 0.5 * (toNum(inputs.d_s) - toNum(inputs.b_s))
-              : toNum(inputs.d_s) - 2 * toNum(inputs.b_s);
-          const A = toNum(D) + (toNum(R) - toNum(inputs.d_f)) - G;
-          const gamma = toNum(inputs.d_d) - toNum(b_d) > 0
-            ? (toNum(inputs.d_d) - toNum(b_d)) / (toNum(inputs.d_d) - toNum(b_d) + toNum(inputs.lambda_3))
+            : toNum(inputs.d_s) / 3 <= toNum(b_s || inputs.b_s)
+              ? 0.5 * (toNum(inputs.d_s) - toNum(b_s || inputs.b_s))
+              : toNum(inputs.d_s) - 2 * toNum(b_s || inputs.b_s);
+          const A = toNum(D || inputs.D) + (toNum(R || inputs.R) - toNum(inputs.d_f)) - G;
+          const gamma = toNum(inputs.d_d) - toNum(b_d || inputs.b_d) > 0
+            ? (toNum(inputs.d_d) - toNum(b_d || inputs.b_d)) / (toNum(inputs.d_d) - toNum(b_d || inputs.b_d) + toNum(inputs.lambda_3))
             : 0;
-          const e = toNum(inputs.d_e) - toNum(b_e);
+          const e = toNum(inputs.d_e) - toNum(b_e || inputs.b_e);
           const beta = e > 0 ? e / (e + toNum(inputs.lambda_4)) : 0;
           return (
             (toNum(inputs.skill_multiplier) / 100) *
             (((toNum(inputs.lambda_1) + toNum(inputs.lambda_2) * A) * (1 - gamma)) +
-              toNum(inputs.W) * toNum(inputs.lambda_2) * toNum(E) * (1 - beta))
+              toNum(inputs.W) * toNum(inputs.lambda_2) * toNum(E || inputs.E) * (1 - beta))
           ) * d_mul *
             (1 + toNum(inputs.flow_percent) - toNum(inputs.flow_resist_percent)) *
             (1 + toNum(inputs.damage_increase) - toNum(inputs.damage_reduction)) *
             (1 + toNum(inputs.skill_damage_increase) / 100 - toNum(inputs.skill_damage_reduction) / 100);
         };
 
-        const baseDamage = calculateDamage(
-          toNum(inputs.D),
-          toNum(inputs.b_d),
-          toNum(inputs.b_e),
-          toNum(inputs.E),
-          toNum(inputs.R)
-        );
+        // 計算基礎傷害（使用原始數值）
+        const baseDamage = calculateDamage();
 
+        // 計算每個屬性的增益
         const calculateIncrease = (attr, value) => {
-          const modifiedInputs = { ...inputs, [attr]: value };
-          const d_new = calculateDamage(
-            toNum(modifiedInputs.D),
-            toNum(modifiedInputs.b_d),
-            toNum(modifiedInputs.b_e),
-            toNum(modifiedInputs.E),
-            toNum(modifiedInputs.R)
+          const params = {
+            D: toNum(inputs.D),
+            E: toNum(inputs.E),
+            R: toNum(inputs.R),
+            b_d: toNum(inputs.b_d),
+            b_e: toNum(inputs.b_e),
+            b_s: toNum(inputs.b_s),
+            h: toNum(inputs.h)
+          };
+
+          // 增加指定屬性的值
+          params[attr] += value;
+
+          const newDamage = calculateDamage(
+            params.D, params.E, params.R,
+            params.b_d, params.b_e, params.b_s, params.h
           );
-          return baseDamage ? (d_new - baseDamage) / baseDamage : 0;
+
+          return baseDamage ? (newDamage - baseDamage) / baseDamage : 0;
         };
 
+        // 計算每個屬性點的增益
         attribute_points.forEach((point) => {
           increases.D.push(calculateIncrease('D', point));
           increases.E.push(calculateIncrease('E', point));
           increases.R.push(calculateIncrease('R', point));
           increases.b_d.push(calculateIncrease('b_d', point));
           increases.b_e.push(calculateIncrease('b_e', point));
+          increases.b_s.push(calculateIncrease('b_s', point));
+          increases.h.push(calculateIncrease('h', point));
         });
 
-        for (let i = 1; i < attribute_points.length; i++) {
+        // 計算遞增收益（每200點的差值）
+        for (let i = 1; i < increases.D.length; i++) {
           delta_increases.D.push(increases.D[i] - increases.D[i - 1]);
           delta_increases.E.push(increases.E[i] - increases.E[i - 1]);
           delta_increases.R.push(increases.R[i] - increases.R[i - 1]);
           delta_increases.b_d.push(increases.b_d[i] - increases.b_d[i - 1]);
           delta_increases.b_e.push(increases.b_e[i] - increases.b_e[i - 1]);
+          delta_increases.b_s.push(increases.b_s[i] - increases.b_s[i - 1]);
+          delta_increases.h.push(increases.h[i] - increases.h[i - 1]);
         }
 
+        // 格式化數據供圖表使用
         const deltaData = attribute_points.slice(1).map((point, i) => ({
           point,
           D: delta_increases.D[i],
           E: delta_increases.E[i],
           R: delta_increases.R[i],
           b_d: delta_increases.b_d[i],
-          b_e: delta_increases.b_e[i]
+          b_e: delta_increases.b_e[i],
+          b_s: delta_increases.b_s[i],
+          h: delta_increases.h[i],
         }));
 
         const increaseData = attribute_points.map((point, i) => ({
@@ -1591,9 +1606,12 @@
           E: increases.E[i],
           R: increases.R[i],
           b_d: increases.b_d[i],
-          b_e: increases.b_e[i]
+          b_e: increases.b_e[i],
+          b_s: increases.b_s[i],
+          h: increases.h[i]
         }));
 
+        // 修正返回的變數名稱
         return { deltaData, increaseData };
       };
 
@@ -1616,7 +1634,6 @@
 
       const result = calculate(inputs);
       const { deltaData, increaseData } = generateChartData(inputs);
-
 
       return (
         <div className="p-4 container mx-auto min-h-screen">
@@ -1779,14 +1796,13 @@
                 {[
                   { label: "真實會心", value: result.c_original },
                   { label: "會心率", value: result.p_c_original },
-                  { label: "命中修正", value: result.r_h_original },
-                  { label: "格擋率", value: result.r_b_original },
                   { label: "命中增幅倍率", value: result.p_h_original },
                   { label: "會心傷害倍率", value: result.m_c_original },
                   { label: "傷害倍率", value: result.d_mul_original },
                   { label: "剩餘氣盾", value: result.G_original },
                   { label: "防禦穿透率", value: result.gamma_original_2 },
-                  { label: "元素穿透率", value: result.beta_original_2 }
+                  { label: "元素穿透率", value: result.beta_original_2 },
+                  { label: "元素傷害佔比", value: result.base_elementalDamagePrecentage }
 
                 ].map(({ label, value }) => (
                   <div key={label} className="bg-gray-50 p-3 rounded-lg">
@@ -1807,7 +1823,6 @@
                 {[
                   { label: "修正會心", value: result.c },
                   { label: "會心率", value: result.p_c },
-                  { label: "命中修正", value: result.r_h },
                   { label: "命中增幅倍率", value: result.p_h },
                   { label: "會心傷害倍率", value: result.m_c },
                   { label: "傷害倍率", value: result.d_mul },
@@ -1928,8 +1943,8 @@
                 {[
                   { key: 'b_d', label: '破防', color: '#3b82f6' },
                   { key: 'b_e', label: '忽視元素抗性', color: '#10b981' },
-                  { key: 'D', label: '攻擊', color: '#8b5cf6' },
-                  { key: 'E', label: '元素攻擊', color: '#f97316' }
+                  { key: 'b_s', label: '破盾', color: '#8b5cf6' },
+                  { key: 'R', label: '克制', color: '#14b8a6' },
                 ].map(({ key, label, color }) => (
                   <label key={key} className="flex items-center">
                     <input
@@ -1961,8 +1976,8 @@
                     {/* 根據可見性動態渲染曲線 */}
                     {visibility.b_d && <Recharts.Line type="monotone" dataKey="b_d" name="破防" stroke="#3b82f6" strokeWidth={2} dot={false} />}
                     {visibility.b_e && <Recharts.Line type="monotone" dataKey="b_e" name="忽視元素抗性" stroke="#10b981" strokeWidth={2} dot={false} />}
-                    {visibility.D && <Recharts.Line type="monotone" dataKey="D" name="攻擊" stroke="#8b5cf6" strokeWidth={2} dot={false} />}
-                    {visibility.E && <Recharts.Line type="monotone" dataKey="E" name="元素攻擊" stroke="#f97316" strokeWidth={2} dot={false} />}
+                    {visibility.b_s && <Recharts.Line type="monotone" dataKey="b_s" name="破盾" stroke="#8b5cf6" strokeWidth={2} dot={false} />}
+                    {visibility.R && <Recharts.Line type="monotone" dataKey="R" name="克制" stroke="#14b8a6" strokeWidth={2} dot={false} />}
                   </Recharts.LineChart>
                 </Recharts.ResponsiveContainer>
               </div>
@@ -1978,7 +1993,8 @@
                 {[
                   { key: 'b_d', label: '破防', color: '#3b82f6' },
                   { key: 'b_e', label: '忽視元素抗性', color: '#10b981' },
-                  { key: 'E', label: '元素攻擊', color: '#f97316' }
+                  { key: 'b_s', label: '破盾', color: '#8b5cf6' },
+                  { key: 'R', label: '克制', color: '#14b8a6' },
                 ].map(({ key, label, color }) => (
                   <label key={key} className="flex items-center">
                     <input
@@ -2010,7 +2026,8 @@
                     {/* 根據可見性動態渲染曲線 */}
                     {visibility.b_d && <Recharts.Line type="monotone" dataKey="b_d" name="破防" stroke="#3b82f6" strokeWidth={2} dot={false} />}
                     {visibility.b_e && <Recharts.Line type="monotone" dataKey="b_e" name="忽視元素抗性" stroke="#10b981" strokeWidth={2} dot={false} />}
-                    {visibility.E && <Recharts.Line type="monotone" dataKey="E" name="元素攻擊" stroke="#f97316" strokeWidth={2} dot={false} />}
+                    {visibility.b_s && <Recharts.Line type="monotone" dataKey="b_s" name="破盾" stroke="#8b5cf6" strokeWidth={2} dot={false} />}
+                    {visibility.R && <Recharts.Line type="monotone" dataKey="R" name="克制" stroke="#14b8a6" strokeWidth={2} dot={false} />}
                   </Recharts.LineChart>
                 </Recharts.ResponsiveContainer>
               </div>
@@ -2023,7 +2040,7 @@
         </div>
       );
     };
-
+  
     // Footer Component
     const Footer = () => {
       return (
