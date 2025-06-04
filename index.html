@@ -1,6 +1,4 @@
-<html lang="zh-TW">
-
-<head>
+<html lang="zh-TW"><head>
   <script type="text/javascript">
     var gk_isXlsx = false;
     var gk_xlsxFileLookup = {};
@@ -1399,72 +1397,99 @@
           skill_multiplier, D, E, b_c, d_c, R, h, b_d, b_s, b_e, flow_percent, damage_increase,
           skill_damage_increase, d_s, d_f, d_d, d_e, b_b, hp, b_c_defense, d_c_defense,
           flow_resist_percent, damage_reduction, skill_damage_reduction, lambda_1, lambda_2,
-          lambda_3, lambda_4, W, gold_i
+          lambda_3, lambda_4, W, gold_i, d_b
         } = inputs;
 
-        const c = toNum(b_c) - toNum(b_c_defense);
-        const p_c = (115 * c + 90) / (c + 940) / 100 + toNum(gold_i);
-        const r_h = 143 * toNum(h) / (toNum(h) + 3678) / 100;
-        const r_b = 143 * toNum(b_b) / (toNum(b_b) + 3678) / 100;
+        const toNumVal = (val) => Number(val) || 0;
+
+        const c = toNumVal(b_c) - toNumVal(b_c_defense);
+        const p_c = (115 * c + 90) / (c + 940) / 100 + toNumVal(gold_i);
+        const r_h = 143 * toNumVal(h) / (toNumVal(h) + 3678) / 100;
+        const r_b = 143 * toNumVal(b_b) / (toNumVal(b_b) + 3678) / 100;
         const p_h = Math.min(1, 0.95 + r_h - r_b);
-        const m_c = 1 + p_c * (toNum(d_c) - 1 - toNum(d_c_defense));
+        const m_c = 1 + p_c * (toNumVal(d_c) - 1 - toNumVal(d_c_defense));
         const d_mul = m_c * p_h + 0.5 * (1 - p_h);
-        const G = toNum(b_s) >= toNum(d_s)
+
+        const G = toNumVal(b_s) >= toNumVal(d_s)
           ? 0
-          : toNum(d_s) / 3 <= toNum(b_s)
-            ? 0.5 * (toNum(d_s) - toNum(b_s))
-            : toNum(d_s) - 2 * toNum(b_s);
-        const A = toNum(D) + (toNum(R) - toNum(d_f)) - G;
-        const gamma = toNum(d_d) - toNum(b_d) > 0
-          ? (toNum(d_d) - toNum(b_d)) / (toNum(d_d) - toNum(b_d) + toNum(lambda_3))
+          : toNumVal(d_s) / 3 <= toNumVal(b_s)
+            ? 0.5 * (toNumVal(d_s) - toNumVal(b_s))
+            : toNumVal(d_s) - 2 * toNumVal(b_s);
+
+        const A = toNumVal(D) + (toNumVal(R) - toNumVal(d_f)) - G;
+
+        const gamma = toNumVal(d_d) - toNumVal(b_d) > 0
+          ? (toNumVal(d_d) - toNumVal(b_d)) / (toNumVal(d_d) - toNumVal(b_d) + toNumVal(lambda_3))
           : 0;
-        const gamma_1 = 1 - toNum(gamma);
-        const e = toNum(d_e) - toNum(b_e);
-        const beta = e > 0 ? e / (e + toNum(lambda_4)) : 0;
-        const gamma_2 = (toNum(d_d) - toNum(b_d)) > 0
-          ? 1 - ((toNum(d_d) - toNum(b_d)) / (toNum(d_d) - toNum(b_d) + toNum(lambda_3)))
-          : 1;
-        const beta_2 = e > 0
-          ? 1 - (e / (e + toNum(lambda_4)))
-          : 1;
-        const c_original = toNum(b_c);
-        const p_c_original = (115 * c_original + 90) / (c_original + 940) / 100 + toNum(gold_i);
+        const gamma_1 = 1 - gamma;
+
+        const e = toNumVal(d_e) - toNumVal(b_e);
+        const beta = e > 0 ? e / (e + toNumVal(lambda_4)) : 0;
+
+        const gamma_2 = gamma > 0 ? 1 - gamma : 1;
+        const beta_2 = beta > 0 ? 1 - beta : 1;
+
+        const c_original = toNumVal(b_c);
+        const p_c_original = (115 * c_original + 90) / (c_original + 940) / 100 + toNumVal(gold_i);
         const r_h_original = r_h;
         const r_b_original = 0;
         const p_h_original = Math.min(1, 0.95 + r_h_original - r_b_original);
-        const m_c_original = 1 + p_c_original * (toNum(d_c) - 1);
+        const m_c_original = 1 + p_c_original * (toNumVal(d_c) - 1);
         const d_mul_original = m_c_original * p_h_original + 0.5 * (1 - p_h_original);
-        const G_original = toNum(b_s);
+        const G_original = toNumVal(b_s);
+        const A_original = toNumVal(D) + toNumVal(R) + G_original;
         const gamma_original = 0;
-        const A_original = toNum(D) + toNum(R) + G_original;
         const beta_original = 0;
-        const gamma_original_2 = 1 - toNum(gamma_original);
-        const beta_original_2 = 1 - toNum(beta_original);
+        const gamma_original_2 = 1 - gamma_original;
+        const beta_original_2 = 1 - beta_original;
 
         const baseDamage = (
-          (toNum(skill_multiplier) / 100) * (((toNum(lambda_1) + toNum(lambda_2) * A_original) * (1 - gamma_original)) +
-            toNum(W) * toNum(lambda_2) * toNum(E) * (1 - beta_original))
-        ) * d_mul_original * (1 + toNum(flow_percent)) * (1 + toNum(damage_increase)) * (1 + toNum(skill_damage_increase) / 100);
+          (toNumVal(skill_multiplier) / 100) * (((toNumVal(lambda_1) + toNumVal(lambda_2) * A_original) * (1 - gamma_original)) +
+            toNumVal(W) * toNumVal(lambda_2) * toNumVal(E) * (1 - beta_original))
+        ) * d_mul_original * (1 + toNumVal(flow_percent)) * (1 + toNumVal(damage_increase)) * (1 + toNumVal(skill_damage_increase) / 100);
 
         const finalDamage = (
-          (toNum(skill_multiplier) / 100) * (((toNum(lambda_1) + toNum(lambda_2) * A) * (1 - gamma)) +
-            toNum(W) * toNum(lambda_2) * toNum(E) * (1 - beta))
-        ) * d_mul * (1 + toNum(flow_percent) - toNum(flow_resist_percent)) * (1 + toNum(damage_increase) - toNum(damage_reduction)) * (1 + toNum(skill_damage_increase) / 100 - toNum(skill_damage_reduction) / 100);
+          (toNumVal(skill_multiplier) / 100) * (((toNumVal(lambda_1) + toNumVal(lambda_2) * A) * (1 - gamma)) +
+            toNumVal(W) * toNumVal(lambda_2) * toNumVal(E) * (1 - beta))
+        ) * d_mul * (1 + toNumVal(flow_percent) - toNumVal(flow_resist_percent)) * (1 + toNumVal(damage_increase) - toNumVal(damage_reduction)) * (1 + toNumVal(skill_damage_increase) / 100 - toNumVal(skill_damage_reduction) / 100);
 
         const totalReduction = (baseDamage - finalDamage) / baseDamage || 0;
-        const ehp = toNum(hp) / (1 - totalReduction) || toNum(hp);
+        const ehp = toNumVal(hp) / (1 - totalReduction) || toNumVal(hp);
 
         const base_elementalDamage = (
-          (toNum(skill_multiplier) / 100) * (toNum(W) * toNum(lambda_2) * toNum(E) * (1 - beta_original))
-        ) * d_mul_original * (1 + toNum(flow_percent) - toNum(flow_resist_percent)) * (1 + toNum(damage_increase) - toNum(damage_reduction)) * (1 + toNum(skill_damage_increase) / 100 - toNum(skill_damage_reduction) / 100);
+          (toNumVal(skill_multiplier) / 100) * (toNumVal(W) * toNumVal(lambda_2) * toNumVal(E) * (1 - beta_original))
+        ) * d_mul_original * (1 + toNumVal(flow_percent) - toNumVal(flow_resist_percent)) * (1 + toNumVal(damage_increase) - toNumVal(damage_reduction)) * (1 + toNumVal(skill_damage_increase) / 100 - toNumVal(skill_damage_reduction) / 100);
 
         const elementalDamage = (
-          (toNum(skill_multiplier) / 100) * (toNum(W) * toNum(lambda_2) * toNum(E) * (1 - beta))
-        ) * d_mul * (1 + toNum(flow_percent) - toNum(flow_resist_percent)) * (1 + toNum(damage_increase) - toNum(damage_reduction)) * (1 + toNum(skill_damage_increase) / 100 - toNum(skill_damage_reduction) / 100);
+          (toNumVal(skill_multiplier) / 100) * (toNumVal(W) * toNumVal(lambda_2) * toNumVal(E) * (1 - beta))
+        ) * d_mul * (1 + toNumVal(flow_percent) - toNumVal(flow_resist_percent)) * (1 + toNumVal(damage_increase) - toNumVal(damage_reduction)) * (1 + toNumVal(skill_damage_increase) / 100 - toNumVal(skill_damage_reduction) / 100);
 
         const base_elementalDamagePrecentage = base_elementalDamage / baseDamage || 0;
         const elementalDamagePrecentage = elementalDamage / finalDamage || 0;
 
+        const calculateRequiredH = (b_b) => {
+          const b_b_num = toNumVal(b_b);
+          if (b_b_num === 0) {
+            return 0;
+          }
+          const r_b_val = 143 * b_b_num / (b_b_num + 3678) / 100;
+          const r_h_target = 0.05 + r_b_val;
+          if (r_h_target >= 1.43) { // 143/100 = 1.43是理论最大值
+            return '無法滿命中';
+          }
+          const numerator = r_h_target * 100 * 3678;
+          const denominator = 143 - r_h_target * 100;
+
+          if (denominator <= 0) {
+            return '無法滿命中';
+          }
+
+          const h_required = Math.ceil(numerator / denominator);
+
+          return h_required > 0 && h_required < 10000 ? h_required : 'ERROR';
+        };
+
+        const full_ph = calculateRequiredH(inputs.b_b);
 
         return {
           c: c.toFixed(2),
@@ -1502,9 +1527,10 @@
           elementalDamage: elementalDamage.toFixed(2),
           base_elementalDamagePrecentage: (base_elementalDamagePrecentage * 100).toFixed(2) + "%",
           elementalDamagePrecentage: (elementalDamagePrecentage * 100).toFixed(2) + "%",
-
+          full_ph: typeof full_ph === 'number' ? full_ph.toFixed(0) : full_ph,
         };
       };
+
 
       const generateChartData = (inputs) => {
         const attribute_points = Array.from({ length: 51 }, (_, i) => i * 200); // [0, 200, ..., 10000]
@@ -1545,8 +1571,38 @@
             (1 + toNum(inputs.skill_damage_increase) / 100 - toNum(inputs.skill_damage_reduction) / 100);
         };
 
-        // Baseline damage with R, b_d, b_e, b_s, h set to 0
-        const baseDamage = calculateDamage(toNum(inputs.D), toNum(inputs.E), 0, 0, 0, 0, 0);
+        // ✅ 修正：計算滿命中所需的命中值
+        const calculateRequiredH = (b_b) => {
+          const b_b_num = toNum(b_b);
+          if (b_b_num === 0) return 0;
+
+          const r_b_val = 143 * b_b_num / (b_b_num + 3678) / 100;
+          const r_h_target = 0.05 + r_b_val;
+
+          if (r_h_target >= 1.43) return 10000; // 設定一個高值表示無法達成
+
+          const numerator = r_h_target * 100 * 3678;
+          const denominator = 143 - r_h_target * 100;
+
+          if (denominator <= 0) return 10000;
+
+          return Math.ceil(numerator / denominator);
+        };
+
+        // ✅ 修正：使用滿命中作為基準，而不是全部屬性為0
+        const fullHitRequired = calculateRequiredH(toNum(inputs.b_b));
+        const baselineH = Math.min(fullHitRequired, 10000); // 確保不會過高
+
+        // 基準傷害：使用滿命中 + 其他屬性為0的情況
+        const baseDamage = calculateDamage(
+          toNum(inputs.D),
+          toNum(inputs.E),
+          0, // R = 0
+          0, // b_d = 0
+          0, // b_e = 0
+          0, // b_s = 0
+          baselineH // h = 滿命中所需值
+        );
 
         const calculateIncrease = (attr, value) => {
           const params = {
@@ -1556,14 +1612,28 @@
             b_d: 0,
             b_e: 0,
             b_s: 0,
-            h: 0
+            h: baselineH // ✅ 基準命中值
           };
-          // Set attribute value: absolute for R, b_d, b_e, b_s, h; incremental for D, E
-          params[attr] = ['R', 'b_d', 'b_e', 'b_s', 'h'].includes(attr) ? value : toNum(inputs[attr]) + value;
+
+          // 設定屬性值
+          if (['R', 'b_d', 'b_e', 'b_s'].includes(attr)) {
+            // R, b_d, b_e, b_s 使用絕對值
+            params[attr] = value;
+          } else if (attr === 'h') {
+            // ✅ 命中使用基準值 + 增量
+            params[attr] = baselineH + value;
+          } else {
+            // D, E 使用當前值 + 增量
+            params[attr] = toNum(inputs[attr]) + value;
+          }
+
           const newDamage = calculateDamage(
             params.D, params.E, params.R, params.b_d, params.b_e, params.b_s, params.h
           );
-          return baseDamage ? (newDamage - baseDamage) / baseDamage : 0;
+          const increase = baseDamage ? (newDamage - baseDamage) / baseDamage : 0;
+
+          // ✅ 負收益顯示為0
+          return Math.max(0, increase);
         };
 
         attribute_points.forEach((point) => {
@@ -1577,13 +1647,14 @@
         });
 
         for (let i = 1; i < increases.b_s.length; i++) {
-          delta_increases.D.push(increases.D[i] - increases.D[i - 1]);
-          delta_increases.E.push(increases.E[i] - increases.E[i - 1]);
-          delta_increases.R.push(increases.R[i] - increases.R[i - 1]);
-          delta_increases.b_d.push(increases.b_d[i] - increases.b_d[i - 1]);
-          delta_increases.b_e.push(increases.b_e[i] - increases.b_e[i - 1]);
-          delta_increases.b_s.push(increases.b_s[i] - increases.b_s[i - 1]);
-          delta_increases.h.push(increases.h[i] - increases.h[i - 1]);
+          // ✅ 邊際收益也確保不為負數
+          delta_increases.D.push(Math.max(0, increases.D[i] - increases.D[i - 1]));
+          delta_increases.E.push(Math.max(0, increases.E[i] - increases.E[i - 1]));
+          delta_increases.R.push(Math.max(0, increases.R[i] - increases.R[i - 1]));
+          delta_increases.b_d.push(Math.max(0, increases.b_d[i] - increases.b_d[i - 1]));
+          delta_increases.b_e.push(Math.max(0, increases.b_e[i] - increases.b_e[i - 1]));
+          delta_increases.b_s.push(Math.max(0, increases.b_s[i] - increases.b_s[i - 1]));
+          delta_increases.h.push(Math.max(0, increases.h[i] - increases.h[i - 1]));
         }
 
         const deltaData = attribute_points.slice(1).map((point, i) => ({
@@ -1608,9 +1679,16 @@
           h: increases.h[i]
         }));
 
-        return { deltaData, increaseData };
+        return {
+          deltaData,
+          increaseData,
+          baselineInfo: {
+            fullHitRequired,
+            baselineH,
+            baseDamage: baseDamage.toFixed(2)
+          }
+        };
       };
-
 
       const CustomTooltip = ({ active, payload, label, isDelta }) => {
         if (active && payload && payload.length) {
@@ -1630,6 +1708,7 @@
 
       const result = calculate(inputs);
       const { deltaData, increaseData } = generateChartData(inputs);
+
 
       return (
         <div className="p-4 container mx-auto min-h-screen">
@@ -1853,6 +1932,7 @@
               {[
                 { label: "原傷害", value: result.baseDamage, color: "cherry-100" },
                 { label: "修正後傷害", value: result.finalDamage, color: "cherry-100" },
+                { label: "滿命中", value: result.full_ph, color: "cherry-100" },
                 { label: "傷害抵消率", value: result.totalReduction, color: "cherry-500", text: "white" },
               ].map(({ label, value, color, text }) => (
                 <div key={label} className={`bg-${color} p-3 rounded-lg`}>
@@ -1932,7 +2012,7 @@
             <div className="result-card bg-white p-4 md:p-6 rounded-xl shadow-md border border-gray-100">
               <div className="flex items-center mb-4">
                 <div className="w-1.5 h-5 rounded-full bg-cherry-500 mr-2"></div>
-                <h2 className="font-bold text-base md:text-lg text-gray-800">每200點屬性增傷收益</h2>
+                <h2 className="font-bold text-base md:text-lg text-gray-800">每200點屬性增傷收益-基於現有攻擊計算</h2>
               </div>
               {/* 新增勾選框 */}
               <div className="flex flex-wrap gap-4 mb-4">
@@ -1941,6 +2021,9 @@
                   { key: 'b_e', label: '忽視元素抗性', color: '#10b981' },
                   { key: 'b_s', label: '破盾', color: '#8b5cf6' },
                   { key: 'R', label: '克制', color: '#14b8a6' },
+
+                  { key: 'D', label: '攻擊', color: '#db2537' },
+                  
                 ].map(({ key, label, color }) => (
                   <label key={key} className="flex items-center">
                     <input
@@ -1974,6 +2057,9 @@
                     {visibility.b_e && <Recharts.Line type="monotone" dataKey="b_e" name="忽視元素抗性" stroke="#10b981" strokeWidth={2} dot={false} />}
                     {visibility.b_s && <Recharts.Line type="monotone" dataKey="b_s" name="破盾" stroke="#8b5cf6" strokeWidth={2} dot={false} />}
                     {visibility.R && <Recharts.Line type="monotone" dataKey="R" name="克制" stroke="#14b8a6" strokeWidth={2} dot={false} />}
+
+                    {visibility.D && <Recharts.Line type="monotone" dataKey="D" name="攻擊" stroke="#db2537" strokeWidth={2} dot={false} />}
+                    
                   </Recharts.LineChart>
                 </Recharts.ResponsiveContainer>
               </div>
@@ -1982,7 +2068,7 @@
             <div className="result-card bg-white p-4 md:p-6 rounded-xl shadow-md border border-gray-100">
               <div className="flex items-center mb-4">
                 <div className="w-1.5 h-5 rounded-full bg-cherry-500 mr-2"></div>
-                <h2 className="font-bold text-base md:text-lg text-gray-800">遞增屬性收益走勢</h2>
+                <h2 className="font-bold text-base md:text-lg text-gray-800">遞增屬性收益走勢-基於現有攻擊計算</h2>
               </div>
               {/* 新增勾選框 */}
               <div className="flex flex-wrap gap-4 mb-4">
@@ -1991,6 +2077,9 @@
                   { key: 'b_e', label: '忽視元素抗性', color: '#10b981' },
                   { key: 'b_s', label: '破盾', color: '#8b5cf6' },
                   { key: 'R', label: '克制', color: '#14b8a6' },
+
+                  { key: 'D', label: '攻擊', color: '#db2537' },
+                 
                 ].map(({ key, label, color }) => (
                   <label key={key} className="flex items-center">
                     <input
@@ -2024,6 +2113,9 @@
                     {visibility.b_e && <Recharts.Line type="monotone" dataKey="b_e" name="忽視元素抗性" stroke="#10b981" strokeWidth={2} dot={false} />}
                     {visibility.b_s && <Recharts.Line type="monotone" dataKey="b_s" name="破盾" stroke="#8b5cf6" strokeWidth={2} dot={false} />}
                     {visibility.R && <Recharts.Line type="monotone" dataKey="R" name="克制" stroke="#14b8a6" strokeWidth={2} dot={false} />}
+
+                    {visibility.D && <Recharts.Line type="monotone" dataKey="D" name="攻擊" stroke="#db2537" strokeWidth={2} dot={false} />}
+                    
                   </Recharts.LineChart>
                 </Recharts.ResponsiveContainer>
               </div>
@@ -2102,6 +2194,6 @@
   </script>
 
 
-</body>
 
-</html>
+
+</body></html>
