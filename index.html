@@ -678,6 +678,11 @@
         bb: true  // 格擋
       });
 
+      const [showAttacker, setShowAttacker] = useState(false);
+      const [showDefender, setShowDefender] = useState(false);
+      const [showOriginal, setShowOriginal] = useState(true);
+      const [showReduced, setShowReduced] = useState(true);
+
       const goldOptions = [
         { value: "0", label: "無金周天" },
         { value: "0.03", label: "金周天1級" },
@@ -920,14 +925,22 @@
             <p className="text-center text-white text-opacity-90 text-sm mt-1">如有問題請聯繫櫻桃白蘭地@緣定今生</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div className="bg-white p-4 md:p-6 rounded-xl shadow-md border border-gray-100">
-              <div className="flex items-center mb-4">
+          <div className="bg-white p-4 md:p-6 rounded-xl shadow-md border border-gray-100 mb-4">
+            <div
+              className="flex justify-between items-center cursor-pointer mb-2"
+              onClick={() => setShowAttacker(!showAttacker)}
+            >
+              <div className="flex items-center">
                 <div className="w-1.5 h-5 rounded-full bg-cherry-500 mr-2"></div>
                 <h2 className="font-bold text-base md:text-lg text-gray-800">攻擊方參數</h2>
               </div>
+              <span className="text-cherry-700 text-lg">{showAttacker ? '^' : '⌄'}</span>
+            </div>
+            <div
+              className={`transition-all duration-500 overflow-hidden ${showAttacker ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'}`}
+            >
               <ImageUploader setInputs={setInputs} type="attacker" />
-              <div className="grid grid-cols-1 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {[
                   { key: "skill_multiplier", label: "技能倍率", icon: "🔥", tooltip: "如技能倍率為300%，輸入300" },
                   { key: "D", label: "攻擊", icon: "⚔️" },
@@ -988,14 +1001,24 @@
                 ))}
               </div>
             </div>
+          </div>
 
-            <div className="bg-white p-4 md:p-6 rounded-xl shadow-md border border-gray-100">
-              <div className="flex items-center mb-4">
+          <div className="bg-white p-4 md:p-6 rounded-xl shadow-md border border-gray-100 mb-4">
+            <div
+              className="flex justify-between items-center cursor-pointer mb-2"
+              onClick={() => setShowDefender(!showDefender)}
+            >
+              <div className="flex items-center">
                 <div className="w-1.5 h-5 rounded-full bg-cherry-500 mr-2"></div>
                 <h2 className="font-bold text-base md:text-lg text-gray-800">防守方參數</h2>
               </div>
+              <span className="text-cherry-700 text-lg">{showDefender ? '^' : '⌄'}</span>
+            </div>
+            <div
+              className={`transition-all duration-500 overflow-hidden ${showDefender ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'}`}
+            >
               <ImageUploader setInputs={setInputs} type="defender" />
-              <div className="grid grid-cols-1 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {[
                   { key: "d_s", label: "氣盾", icon: "🛡️" },
                   { key: "d_f", label: "流派抵禦", icon: "🔄" },
@@ -1038,82 +1061,70 @@
                 ))}
               </div>
             </div>
-
-            <div className="bg-white p-4 md:p-6 rounded-xl shadow-md border border-gray-100">
-              <div className="flex items-center mb-4">
-                <div className="w-1.5 h-5 rounded-full bg-cherry-500 mr-2"></div>
-                <h2 className="font-bold text-base md:text-lg text-gray-800">系統常數</h2>
-              </div>
-              <div className="grid grid-cols-1 gap-3">
-                {[
-                  { key: "lambda_1", label: "λ₁", icon: "α" },
-                  { key: "lambda_2", label: "λ₂", icon: "β" },
-                  { key: "lambda_3", label: "λ₃", icon: "γ" },
-                  { key: "lambda_4", label: "λ₄", icon: "δ" },
-                ].map(({ key, label, icon }) => (
-                  <div key={key} className="flex flex-col">
-                    <label className="text-xs md:text-sm text-gray-600 mb-1 flex items-center">
-                      <span className="mr-1 md:mr-2">{icon}</span>{label}
-                    </label>
-                    <div className="border border-gray-200 rounded-lg p-2 bg-gray-50 text-sm text-gray-700">
-                      {inputs[key]}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            <div className="result-card bg-white p-4 md:p-6 rounded-xl shadow-md border border-gray-100">
-              <div className="flex items-center mb-4">
+          <div className="bg-white p-4 md:p-6 rounded-xl shadow-md border border-gray-100 mb-6">
+            {/* 原數值屬性區塊 */}
+            <div
+              className="flex justify-between items-center cursor-pointer mb-2"
+              onClick={() => setShowOriginal(!showOriginal)}
+            >
+              <div className="flex items-center">
                 <div className="w-1.5 h-5 rounded-full bg-cherry-500 mr-2"></div>
                 <h2 className="font-bold text-base md:text-lg text-gray-800">原數值屬性</h2>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                {[
-                  { label: "真實會心", value: result.c_original },
-                  { label: "會心率", value: result.p_c_original },
-                  { label: "命中修正", value: result.r_h_original },
-                  { label: "格擋率", value: result.r_b_original },
-                  { label: "命中增幅倍率", value: result.p_h_original },
-                  { label: "會心傷害倍率", value: result.m_c_original },
-                  { label: "傷害倍率", value: result.d_mul_original },
-                  { label: "剩餘氣盾", value: result.G_original },
-                  { label: "防禦傷害減免", value: result.gamma_original },
-                  { label: "元素傷害減免", value: result.beta_original }
-                ].map(({ label, value }) => (
-                  <div key={label} className="bg-gray-50 p-3 rounded-lg">
-                    <p className="text-xs text-gray-600">{label}</p>
-                    <p className="text-sm font-bold text-gray-800">{value}</p>
-                  </div>
-                ))}
+              <span className="text-cherry-700 text-lg">{showOriginal ? '^' : '⌄'}</span>
+            </div>
+            <div className={`transition-all duration-500 overflow-hidden ${showOriginal ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'}`}>
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                {[{ label: "真實會心", value: result.c_original },
+                { label: "會心率", value: result.p_c_original },
+                { label: "命中修正", value: result.r_h_original },
+                { label: "格擋率", value: result.r_b_original },
+                { label: "命中增幅倍率", value: result.p_h_original },
+                { label: "會心傷害倍率", value: result.m_c_original },
+                { label: "傷害倍率", value: result.d_mul_original },
+                { label: "剩餘氣盾", value: result.G_original },
+                { label: "防禦傷害減免", value: result.gamma_original },
+                { label: "元素傷害減免", value: result.beta_original }]
+                  .map(({ label, value }) => (
+                    <div key={label} className="bg-gray-50 p-2 md:p-3 rounded-lg">
+                      <p className="text-xs text-gray-600">{label}</p>
+                      <p className="text-sm font-bold text-gray-800">{value}</p>
+                    </div>
+                  ))}
               </div>
             </div>
 
-            <div className="result-card bg-white p-4 md:p-6 rounded-xl shadow-md border border-gray-100">
-              <div className="flex items-center mb-4">
+            {/* 減傷後屬性區塊 */}
+            <div
+              className="flex justify-between items-center cursor-pointer mb-2"
+              onClick={() => setShowReduced(!showReduced)}
+            >
+              <div className="flex items-center">
                 <div className="w-1.5 h-5 rounded-full bg-cherry-500 mr-2"></div>
                 <h2 className="font-bold text-base md:text-lg text-gray-800">減傷後屬性</h2>
               </div>
+              <span className="text-cherry-700 text-lg">{showReduced ? '^' : '⌄'}</span>
+            </div>
+            <div className={`transition-all duration-500 overflow-hidden ${showReduced ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'}`}>
               <div className="grid grid-cols-2 gap-3">
-                {[
-                  { label: "修正會心", value: result.c },
-                  { label: "會心率", value: result.p_c },
-                  { label: "命中修正", value: result.r_h },
-                  { label: "格擋率", value: result.r_b },
-                  { label: "命中增幅倍率", value: result.p_h },
-                  { label: "會心傷害倍率", value: result.m_c },
-                  { label: "傷害倍率", value: result.d_mul },
-                  { label: "剩餘氣盾", value: result.G },
-                  { label: "防禦傷害減免", value: result.gamma },
-                  { label: "元素傷害減免", value: result.beta }
-                ].map(({ label, value }) => (
-                  <div key={label} className="bg-cherry-50 p-3 rounded-lg">
-                    <p className="text-xs text-cherry-600">{label}</p>
-                    <p className="text-sm font-bold text-cherry-800">{value}</p>
-                  </div>
-                ))}
+                {[{ label: "修正會心", value: result.c },
+                { label: "會心率", value: result.p_c },
+                { label: "命中修正", value: result.r_h },
+                { label: "格擋率", value: result.r_b },
+                { label: "命中增幅倍率", value: result.p_h },
+                { label: "會心傷害倍率", value: result.m_c },
+                { label: "傷害倍率", value: result.d_mul },
+                { label: "剩餘氣盾", value: result.G },
+                { label: "防禦傷害減免", value: result.gamma },
+                { label: "元素傷害減免", value: result.beta }]
+                  .map(({ label, value }) => (
+                    <div key={label} className="bg-cherry-50 p-2 md:p-3 rounded-lg">
+                      <p className="text-xs text-cherry-600">{label}</p>
+                      <p className="text-sm font-bold text-cherry-800">{value}</p>
+                    </div>
+                  ))}
               </div>
             </div>
           </div>
@@ -1346,6 +1357,10 @@
         E: true, // 元素攻擊
       });
 
+      const [showAttacker, setShowAttacker] = useState(false);
+      const [showDefender, setShowDefender] = useState(false);
+      const [showOriginal, setShowOriginal] = useState(true);
+      const [showCorrected, setShowCorrected] = useState(true);
 
       const goldOptions = [
         { value: "0", label: "無金周天" },
@@ -1717,14 +1732,22 @@
             <p className="text-center text-white text-opacity-90 text-sm mt-1">如有問題請聯繫櫻桃白蘭地@緣定今生</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div className="bg-white p-4 md:p-6 rounded-xl shadow-md border border-gray-100">
-              <div className="flex items-center mb-4">
+          <div className="bg-white p-4 md:p-6 rounded-xl shadow-md border border-gray-100 mb-4">
+            <div
+              className="flex justify-between items-center cursor-pointer mb-2"
+              onClick={() => setShowAttacker(!showAttacker)}
+            >
+              <div className="flex items-center">
                 <div className="w-1.5 h-5 rounded-full bg-cherry-500 mr-2"></div>
                 <h2 className="font-bold text-base md:text-lg text-gray-800">攻擊方參數</h2>
               </div>
+              <span className="text-cherry-700 text-lg">{showAttacker ? '^' : '⌄'}</span>
+            </div>
+            <div
+              className={`transition-all duration-500 overflow-hidden ${showAttacker ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'}`}
+            >
               <ImageUploader setInputs={setInputs} type="attacker" />
-              <div className="grid grid-cols-1 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {[
                   { key: "skill_multiplier", label: "技能倍率", icon: "🔥", tooltip: "如技能倍率為300%，輸入300" },
                   { key: "D", label: "攻擊", icon: "⚔️" },
@@ -1785,14 +1808,24 @@
                 ))}
               </div>
             </div>
+          </div>
 
-            <div className="bg-white p-4 md:p-6 rounded-xl shadow-md border border-gray-100">
-              <div className="flex items-center mb-4">
+          <div className="bg-white p-4 md:p-6 rounded-xl shadow-md border border-gray-100 mb-4">
+            <div
+              className="flex justify-between items-center cursor-pointer mb-2"
+              onClick={() => setShowDefender(!showDefender)}
+            >
+              <div className="flex items-center">
                 <div className="w-1.5 h-5 rounded-full bg-cherry-500 mr-2"></div>
                 <h2 className="font-bold text-base md:text-lg text-gray-800">防守方參數</h2>
               </div>
+              <span className="text-cherry-700 text-lg">{showDefender ? '^' : '⌄'}</span>
+            </div>
+            <div
+              className={`transition-all duration-500 overflow-hidden ${showDefender ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'}`}
+            >
               <ImageUploader setInputs={setInputs} type="defender" />
-              <div className="grid grid-cols-1 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {[
                   { key: "d_s", label: "氣盾", icon: "🛡️" },
                   { key: "d_f", label: "流派抵禦", icon: "🔄" },
@@ -1835,86 +1868,71 @@
                 ))}
               </div>
             </div>
-
-            <div className="bg-white p-4 md:p-6 rounded-xl shadow-md border border-gray-100">
-              <div className="flex items-center mb-4">
-                <div className="w-1.5 h-5 rounded-full bg-cherry-500 mr-2"></div>
-                <h2 className="font-bold text-base md:text-lg text-gray-800">系統常數</h2>
-              </div>
-              <div className="grid grid-cols-1 gap-3">
-                {[
-                  { key: "lambda_1", label: "λ₁", icon: "α" },
-                  { key: "lambda_2", label: "λ₂", icon: "β" },
-                  { key: "lambda_3", label: "λ₃", icon: "γ" },
-                  { key: "lambda_4", label: "λ₄", icon: "δ" },
-                ].map(({ key, label, icon }) => (
-                  <div key={key} className="flex flex-col">
-                    <label className="text-xs md:text-sm text-gray-600 mb-1 flex items-center">
-                      <span className="mr-1 md:mr-2">{icon}</span>{label}
-                    </label>
-                    <div className="border border-gray-200 rounded-lg p-2 bg-gray-50 text-sm text-gray-700">
-                      {inputs[key]}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            <div className="result-card bg-white p-4 md:p-6 rounded-xl shadow-md border border-gray-100">
-              <div className="flex items-center mb-4">
+          <div className="bg-white p-4 md:p-6 rounded-xl shadow-md border border-gray-100 mb-6">
+            {/* 原數值屬性區塊 */}
+            <div
+              className="flex justify-between items-center cursor-pointer mb-2"
+              onClick={() => setShowOriginal(!showOriginal)}
+            >
+              <div className="flex items-center">
                 <div className="w-1.5 h-5 rounded-full bg-cherry-500 mr-2"></div>
                 <h2 className="font-bold text-base md:text-lg text-gray-800">原數值屬性</h2>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                {[
-                  { label: "真實會心", value: result.c_original },
-                  { label: "會心率", value: result.p_c_original },
-                  { label: "命中增幅倍率", value: result.p_h_original },
-                  { label: "會心傷害倍率", value: result.m_c_original },
-                  { label: "傷害倍率", value: result.d_mul_original },
-                  { label: "剩餘氣盾", value: result.G_original },
-                  { label: "防禦穿透率", value: result.gamma_original_2 },
-                  { label: "元素穿透率", value: result.beta_original_2 },
-                  { label: "元素傷害佔比", value: result.base_elementalDamagePrecentage }
-
-                ].map(({ label, value }) => (
-                  <div key={label} className="bg-gray-50 p-3 rounded-lg">
-                    <p className="text-xs text-gray-600">{label}</p>
-                    <p className="text-sm font-bold text-gray-800">{value}</p>
-                  </div>
-                ))}
+              <span className="text-cherry-700 text-lg">{showOriginal ? '^' : '⌄'}</span>
+            </div>
+            <div className={`transition-all duration-500 overflow-hidden ${showOriginal ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'}`}>
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                {[{ label: "真實會心", value: result.c_original },
+                { label: "會心率", value: result.p_c_original },
+                { label: "命中增幅倍率", value: result.p_h_original },
+                { label: "會心傷害倍率", value: result.m_c_original },
+                { label: "傷害倍率", value: result.d_mul_original },
+                { label: "剩餘氣盾", value: result.G_original },
+                { label: "防禦穿透率", value: result.gamma_original_2 },
+                { label: "元素穿透率", value: result.beta_original_2 },
+                { label: "元素傷害佔比", value: result.base_elementalDamagePrecentage }]
+                  .map(({ label, value }) => (
+                    <div key={label} className="bg-gray-50 p-2 md:p-3 rounded-lg">
+                      <p className="text-xs text-gray-600">{label}</p>
+                      <p className="text-sm font-bold text-gray-800">{value}</p>
+                    </div>
+                  ))}
               </div>
             </div>
 
-
-            <div className="result-card bg-white p-4 md:p-6 rounded-xl shadow-md border border-gray-100">
-              <div className="flex items-center mb-4">
+            {/* 修正後屬性區塊 */}
+            <div
+              className="flex justify-between items-center cursor-pointer mb-2"
+              onClick={() => setShowCorrected(!showCorrected)}
+            >
+              <div className="flex items-center">
                 <div className="w-1.5 h-5 rounded-full bg-cherry-500 mr-2"></div>
                 <h2 className="font-bold text-base md:text-lg text-gray-800">修正後屬性</h2>
               </div>
+              <span className="text-cherry-700 text-lg">{showCorrected ? '^' : '⌄'}</span>
+            </div>
+            <div className={`transition-all duration-500 overflow-hidden ${showCorrected ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'}`}>
               <div className="grid grid-cols-2 gap-3">
-                {[
-                  { label: "修正會心", value: result.c },
-                  { label: "會心率", value: result.p_c },
-                  { label: "命中增幅倍率", value: result.p_h },
-                  { label: "會心傷害倍率", value: result.m_c },
-                  { label: "傷害倍率", value: result.d_mul },
-                  { label: "剩餘氣盾", value: result.G },
-                  { label: "防禦穿透率", value: result.gamma_2 },
-                  { label: "元素穿透率", value: result.beta_2 },
-                  { label: "元素傷害佔比", value: result.elementalDamagePrecentage }
-                ].map(({ label, value }) => (
-                  <div key={label} className="bg-cherry-50 p-3 rounded-lg">
-                    <p className="text-xs text-cherry-600">{label}</p>
-                    <p className="text-sm font-bold text-cherry-800">{value}</p>
-                  </div>
-                ))}
+                {[{ label: "修正會心", value: result.c },
+                { label: "會心率", value: result.p_c },
+                { label: "命中增幅倍率", value: result.p_h },
+                { label: "會心傷害倍率", value: result.m_c },
+                { label: "傷害倍率", value: result.d_mul },
+                { label: "剩餘氣盾", value: result.G },
+                { label: "防禦穿透率", value: result.gamma_2 },
+                { label: "元素穿透率", value: result.beta_2 },
+                { label: "元素傷害佔比", value: result.elementalDamagePrecentage }]
+                  .map(({ label, value }) => (
+                    <div key={label} className="bg-cherry-50 p-2 md:p-3 rounded-lg">
+                      <p className="text-xs text-cherry-600">{label}</p>
+                      <p className="text-sm font-bold text-cherry-800">{value}</p>
+                    </div>
+                  ))}
               </div>
             </div>
           </div>
-
           <div className="result-card bg-white p-4 md:p-6 rounded-xl shadow-md border border-gray-100 mb-6">
             <div className="flex justify-between items-center mb-4">
               <div className="flex items-center">
@@ -2023,7 +2041,7 @@
                   { key: 'R', label: '克制', color: '#14b8a6' },
 
                   { key: 'D', label: '攻擊', color: '#db2537' },
-                  
+
                 ].map(({ key, label, color }) => (
                   <label key={key} className="flex items-center">
                     <input
@@ -2059,7 +2077,7 @@
                     {visibility.R && <Recharts.Line type="monotone" dataKey="R" name="克制" stroke="#14b8a6" strokeWidth={2} dot={false} />}
 
                     {visibility.D && <Recharts.Line type="monotone" dataKey="D" name="攻擊" stroke="#db2537" strokeWidth={2} dot={false} />}
-                    
+
                   </Recharts.LineChart>
                 </Recharts.ResponsiveContainer>
               </div>
@@ -2079,7 +2097,7 @@
                   { key: 'R', label: '克制', color: '#14b8a6' },
 
                   { key: 'D', label: '攻擊', color: '#db2537' },
-                 
+
                 ].map(({ key, label, color }) => (
                   <label key={key} className="flex items-center">
                     <input
@@ -2115,7 +2133,7 @@
                     {visibility.R && <Recharts.Line type="monotone" dataKey="R" name="克制" stroke="#14b8a6" strokeWidth={2} dot={false} />}
 
                     {visibility.D && <Recharts.Line type="monotone" dataKey="D" name="攻擊" stroke="#db2537" strokeWidth={2} dot={false} />}
-                    
+
                   </Recharts.LineChart>
                 </Recharts.ResponsiveContainer>
               </div>
@@ -2126,6 +2144,7 @@
             <p>攻擊計算器 © {new Date().getFullYear()} | 數據僅供參考</p>
           </div>
         </div>
+
       );
     };
 
@@ -2192,6 +2211,8 @@
 
 
   </script>
+
+
 
 
 
