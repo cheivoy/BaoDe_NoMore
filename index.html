@@ -742,6 +742,7 @@
         const r_h = 143 * toNum(h) / (toNum(h) + 3678) / 100;
         const r_b = 143 * toNum(b_b) / (toNum(b_b) + 3678) / 100;
         const p_h = Math.min(1, 0.95 + r_h - r_b);
+        const p_h_1 = 1 - p_h;
         const m_c = 1 + p_c * (toNum(d_c) - 1 - toNum(d_c_defense));
         const d_mul = m_c * p_h + 0.5 * (1 - p_h);
         const G = toNum(b_s) >= toNum(d_s)
@@ -786,6 +787,7 @@
           r_h: (r_h * 100).toFixed(2) + "%",
           r_b: (r_b * 100).toFixed(2) + "%",
           p_h: p_h.toFixed(4),
+          p_h_1: p_h_1.toFixed(4),
           m_c: m_c.toFixed(4),
           d_mul: d_mul.toFixed(4),
           G: G.toFixed(2),
@@ -1112,7 +1114,7 @@
                 {[{ label: "修正會心", value: result.c },
                 { label: "會心率", value: result.p_c },
                 { label: "命中修正", value: result.r_h },
-                { label: "格擋率", value: result.r_b },
+                { label: "格擋率", value: result.p_h_1 },
                 { label: "命中增幅倍率", value: result.p_h },
                 { label: "會心傷害倍率", value: result.m_c },
                 { label: "傷害倍率", value: result.d_mul },
