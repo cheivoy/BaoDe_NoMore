@@ -291,7 +291,7 @@
         );
       }
 
-      // 根據選擇渲染對應的計算器（你已有現成的內容應該會用這些值來切換）
+      // 根據選擇渲染對應的計算器
       return (
         <>
           <Sidebar setActiveCalculator={setActiveCalculator} />
@@ -657,18 +657,41 @@
     const DamageCalculator = () => {
       const [inputs, setInputs] = useState({
         skill_multiplier: "1518",
-        D: "5000", E: "800", b_c: "900", d_c: "1.8", R: "500", h: "700",
-        b_d: "2000", b_s: "700", b_e: "0", flow_percent: "0", damage_increase: "0",
+        D: "5000",
+        E: "800",
+        b_c: "900",
+        d_c: "1.8",
+        R: "500",
+        h: "700",
+        b_d: "2000",
+        b_s: "700",
+        b_e: "0",
+        flow_percent: "0",
+        damage_increase: "0",
         skill_damage_increase: "0",
-        d_s: "2000", d_f: "2000", d_d: "5000", d_e: "0", b_b: "600", hp: "80000",
-        b_c_defense: "550", d_c_defense: "0", flow_resist_percent: "0", damage_reduction: "0",
+        d_s: "2000",
+        d_f: "2000",
+        d_d: "5000",
+        d_e: "0",
+        b_b: "600",
+        hp: "80000",
+        b_c_defense: "550",
+        d_c_defense: "0",
+        flow_resist_percent: "0",
+        damage_reduction: "0",
         skill_damage_reduction: "0",
-        lambda_1: "358", lambda_2: "0.359", lambda_3: "2860", lambda_4: "531", W: "1",
+        lambda_1: "358",
+        lambda_2: "0.359",
+        lambda_3: "2860",
+        lambda_4: "531",
+        W: "1",
         gold_i: "0"
       });
+
       const [inputErrors, setInputErrors] = useState({});
       const [previousResult, setPreviousResult] = useState(null);
       const [previousInputs, setPreviousInputs] = useState(null);
+
       // 新增可見性狀態，控制曲線顯示
       const [visibility, setVisibility] = useState({
         ds: true, // 氣盾
@@ -678,21 +701,22 @@
         bb: true  // 格擋
       });
 
-      const [showAttacker, setShowAttacker] = useState(false);
-      const [showDefender, setShowDefender] = useState(false);
+      const [showAttacker, setShowAttacker] = useState(true);
+      const [showDefender, setShowDefender] = useState(true);
       const [showOriginal, setShowOriginal] = useState(true);
       const [showReduced, setShowReduced] = useState(true);
+      const [isTableExpanded, setIsTableExpanded] = React.useState(true);
 
       const goldOptions = [
         { value: "0", label: "無金周天" },
         { value: "0.03", label: "金周天1級" },
         { value: "0.04", label: "金周天2級" },
-        { value: "0.05", label: "金周天3級" },
+        { value: "0.05", label: "金周天3級" }
       ];
 
       const elementWeaknessOptions = [
         { value: "1", label: "無元素弱點" },
-        { value: "1.1", label: "碎夢大特" },
+        { value: "1.1", label: "碎夢大特" }
       ];
 
       const handleChange = (e) => {
@@ -712,11 +736,6 @@
           setInputs((prev) => ({ ...prev, [name]: value }));
           setInputErrors((prev) => ({ ...prev, [name]: '' }));
         }
-      };
-
-      const saveCurrentResult = () => {
-        setPreviousResult(calculate(inputs));
-        setPreviousInputs({ ...inputs });
       };
 
       // 切換曲線可見性
@@ -787,7 +806,6 @@
           r_h: (r_h * 100).toFixed(2) + "%",
           r_b: (r_b * 100).toFixed(2) + "%",
           p_h: p_h.toFixed(4),
-          p_h_1: p_h_1.toFixed(4),
           m_c: m_c.toFixed(4),
           d_mul: d_mul.toFixed(4),
           G: G.toFixed(2),
@@ -808,7 +826,8 @@
           baseDamage: baseDamage.toFixed(2),
           finalDamage: finalDamage.toFixed(2),
           totalReduction: (totalReduction * 100).toFixed(2) + "%",
-          ehp: ehp.toFixed(2)
+          ehp: ehp.toFixed(2),
+          p_h_1: (p_h_1 * 100).toFixed(2) + "%"
         };
       };
 
@@ -920,6 +939,59 @@
       const result = calculate(inputs);
       const { deltaData, reductionData } = generateChartData(inputs);
 
+      const STORAGE_KEY = "damagePresets_defense";
+      // 狀態：保存的方案
+      const [presets, setPresets] = useState(() => JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"));
+      // 狀態：對比用的兩個索引
+      const [compareIndexes, setCompareIndexes] = useState({ a: null, b: null });
+      // 狀態：對比結果
+      const [compareResult, setCompareResult] = useState(null);
+
+      // 儲存目前輸入成為新方案
+      const saveCurrentPreset = () => {
+        if (presets.length >= 4) return alert("最多只能保存 4 組方案！");
+        const name = prompt("請輸入方案名稱：");
+        if (!name) return;
+        const newPresets = [...presets, { name, data: inputs }];
+        setPresets(newPresets);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(newPresets));
+      };
+
+      // 載入指定方案
+      const loadPreset = (i) => setInputs(presets[i].data);
+
+      // 刪除指定方案
+      const deletePreset = (i) => {
+        const updated = presets.filter((_, idx) => idx !== i);
+        setPresets(updated);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      };
+
+      // 執行兩組方案對比
+      const comparePresets = () => {
+        const a = presets[compareIndexes.a]?.data;
+        const b = presets[compareIndexes.b]?.data;
+        if (!a || !b) return;
+
+        // 欄位差值
+        const diff = {};
+        Object.keys(a).forEach(key => {
+          diff[key] = toNum(b[key]) - toNum(a[key]);
+        });
+
+        const resultA = calculate(a);
+        const resultB = calculate(b);
+
+        setCompareResult({
+          diff,
+          resultDiff: {
+            baseDamage: toNum(resultB.baseDamage) - toNum(resultA.baseDamage),
+            finalDamage: toNum(resultB.finalDamage) - toNum(resultA.finalDamage),
+            totalReduction: toNum(resultB.totalReduction) - toNum(resultA.totalReduction)
+          }
+        });
+      };
+
       return (
         <div className="p-4 container mx-auto min-h-screen">
           <div className="cherry-gradient rounded-xl p-6 mb-6 shadow-lg">
@@ -936,7 +1008,7 @@
                 <div className="w-1.5 h-5 rounded-full bg-cherry-500 mr-2"></div>
                 <h2 className="font-bold text-base md:text-lg text-gray-800">攻擊方參數</h2>
               </div>
-              <span className="text-cherry-700 text-lg">{showAttacker ? '^' : '⌄'}</span>
+              <span className="text-cherry-700 text-lg">{showAttacker ? '收起' : '展開'}</span>
             </div>
             <div
               className={`transition-all duration-500 overflow-hidden ${showAttacker ? 'max-h-[1500px] opacity-100' : 'max-h-0 opacity-0'}`}
@@ -1014,7 +1086,7 @@
                 <div className="w-1.5 h-5 rounded-full bg-cherry-500 mr-2"></div>
                 <h2 className="font-bold text-base md:text-lg text-gray-800">防守方參數</h2>
               </div>
-              <span className="text-cherry-700 text-lg">{showDefender ? '^' : '⌄'}</span>
+              <span className="text-cherry-700 text-lg">{showDefender ? '收起' : '展開'}</span>
             </div>
             <div
               className={`transition-all duration-500 overflow-hidden ${showDefender ? 'max-h-[1500px] opacity-100' : 'max-h-0 opacity-0'}`}
@@ -1075,26 +1147,27 @@
                 <div className="w-1.5 h-5 rounded-full bg-cherry-500 mr-2"></div>
                 <h2 className="font-bold text-base md:text-lg text-gray-800">原數值屬性</h2>
               </div>
-              <span className="text-cherry-700 text-lg">{showOriginal ? '^' : '⌄'}</span>
+              <span className="text-cherry-700 text-lg">{showOriginal ? '收起' : '展開'}</span>
             </div>
             <div className={`transition-all duration-500 overflow-hidden ${showOriginal ? 'max-h-[1500px] opacity-100' : 'max-h-0 opacity-0'}`}>
               <div className="grid grid-cols-2 gap-3 mb-4">
-                {[{ label: "真實會心", value: result.c_original },
-                { label: "會心率", value: result.p_c_original },
-                { label: "命中修正", value: result.r_h_original },
-                { label: "格擋率", value: result.r_b_original },
-                { label: "命中增幅倍率", value: result.p_h_original },
-                { label: "會心傷害倍率", value: result.m_c_original },
-                { label: "傷害倍率", value: result.d_mul_original },
-                { label: "剩餘氣盾", value: result.G_original },
-                { label: "防禦傷害減免", value: result.gamma_original },
-                { label: "元素傷害減免", value: result.beta_original }]
-                  .map(({ label, value }) => (
-                    <div key={label} className="bg-gray-50 p-2 md:p-3 rounded-lg">
-                      <p className="text-xs text-gray-600">{label}</p>
-                      <p className="text-sm font-bold text-gray-800">{value}</p>
-                    </div>
-                  ))}
+                {[
+                  { label: "真實會心", value: result.c_original },
+                  { label: "會心率", value: result.p_c_original },
+                  { label: "命中修正", value: result.r_h_original },
+                  { label: "格擋率", value: result.r_b_original },
+                  { label: "命中增幅倍率", value: result.p_h_original },
+                  { label: "會心傷害倍率", value: result.m_c_original },
+                  { label: "傷害倍率", value: result.d_mul_original },
+                  { label: "剩餘氣盾", value: result.G_original },
+                  { label: "防禦傷害減免", value: result.gamma_original },
+                  { label: "元素傷害減免", value: result.beta_original }
+                ].map(({ label, value }) => (
+                  <div key={label} className="bg-gray-50 p-2 md:p-3 rounded-lg">
+                    <p className="text-xs text-gray-600">{label}</p>
+                    <p className="text-sm font-bold text-gray-800">{value}</p>
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -1107,26 +1180,27 @@
                 <div className="w-1.5 h-5 rounded-full bg-cherry-500 mr-2"></div>
                 <h2 className="font-bold text-base md:text-lg text-gray-800">減傷後屬性</h2>
               </div>
-              <span className="text-cherry-700 text-lg">{showReduced ? '^' : '⌄'}</span>
+              <span className="text-cherry-700 text-lg">{showReduced ? '收起' : '展開'}</span>
             </div>
             <div className={`transition-all duration-500 overflow-hidden ${showReduced ? 'max-h-[1500px] opacity-100' : 'max-h-0 opacity-0'}`}>
               <div className="grid grid-cols-2 gap-3">
-                {[{ label: "修正會心", value: result.c },
-                { label: "會心率", value: result.p_c },
-                { label: "命中修正", value: result.r_h },
-                { label: "格擋率", value: result.p_h_1 },
-                { label: "命中增幅倍率", value: result.p_h },
-                { label: "會心傷害倍率", value: result.m_c },
-                { label: "傷害倍率", value: result.d_mul },
-                { label: "剩餘氣盾", value: result.G },
-                { label: "防禦傷害減免", value: result.gamma },
-                { label: "元素傷害減免", value: result.beta }]
-                  .map(({ label, value }) => (
-                    <div key={label} className="bg-cherry-50 p-2 md:p-3 rounded-lg">
-                      <p className="text-xs text-cherry-600">{label}</p>
-                      <p className="text-sm font-bold text-cherry-800">{value}</p>
-                    </div>
-                  ))}
+                {[
+                  { label: "修正會心", value: result.c },
+                  { label: "會心率", value: result.p_c },
+                  { label: "命中修正", value: result.r_h },
+                  { label: "格擋率", value: result.p_h_1 },
+                  { label: "命中增幅倍率", value: result.p_h },
+                  { label: "會心傷害倍率", value: result.m_c },
+                  { label: "傷害倍率", value: result.d_mul },
+                  { label: "剩餘氣盾", value: result.G },
+                  { label: "防禦傷害減免", value: result.gamma },
+                  { label: "元素傷害減免", value: result.beta }
+                ].map(({ label, value }) => (
+                  <div key={label} className="bg-cherry-50 p-2 md:p-3 rounded-lg">
+                    <p className="text-xs text-cherry-600">{label}</p>
+                    <p className="text-sm font-bold text-cherry-800">{value}</p>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -1138,18 +1212,19 @@
                 <h2 className="font-bold text-base md:text-lg text-gray-800">傷害計算結果</h2>
               </div>
               <button
-                onClick={saveCurrentResult}
                 className="bg-cherry-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-cherry-700 transition-colors"
+                onClick={saveCurrentPreset}
               >
-                保存結果
+                保存當前方案
               </button>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mt-6">
               {[
                 { label: "原傷害", value: result.baseDamage, color: "cherry-100" },
                 { label: "減傷後傷害", value: result.finalDamage, color: "cherry-100" },
                 { label: "有效氣血 (EHP)", value: result.ehp, color: "cherry-100" },
-                { label: "總減傷率", value: result.totalReduction, color: "cherry-500", text: "white" },
+                { label: "總減傷率", value: result.totalReduction, color: "cherry-500", text: "white" }
               ].map(({ label, value, color, text }) => (
                 <div key={label} className={`bg-${color} p-3 rounded-lg`}>
                   <p className={`text-xs ${text ? `text-${text}` : 'text-cherry-700'}`}>{label}</p>
@@ -1157,68 +1232,180 @@
                 </div>
               ))}
             </div>
-            {previousResult && previousInputs && (
-              <div className="mt-6">
-                <div className="flex items-center mb-4">
-                  <div className="w-1.5 h-5 rounded-full bg-cherry-500 mr-2"></div>
-                  <h3 className="font-bold text-base md:text-lg text-gray-800">與上次結果對比</h3>
+
+
+            {/* 方案列表 */}
+            <div className="mb-6">
+              <h4 className="font-semibold text-base text-gray-800 mb-3 flex items-center">
+                <span className="w-1.5 h-5 rounded-full bg-cherry-500 mr-2"></span>
+                保存的方案
+              </h4>
+              {presets.length === 0 ? (
+                <p className="text-sm text-gray-500">尚未保存任何方案</p>
+              ) : (
+                <div className="grid gap-2">
+                  {presets.map((preset, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-3 bg-cherry-50 rounded-lg hover:bg-cherry-100 transition-colors duration-200"
+                    >
+                      <span className="font-medium text-gray-700">{preset.name}</span>
+                      <div className="flex gap-2">
+                        <button
+                          className="text-sm text-green-600 hover:text-green-800 font-medium transition-colors duration-200 flex items-center gap-1"
+                          onClick={() => loadPreset(index)}
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                          </svg>
+                          載入
+                        </button>
+                        <button
+                          className="text-sm text-red-600 hover:text-red-800 font-medium transition-colors duration-200 flex items-center gap-1"
+                          onClick={() => deletePreset(index)}
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                          刪除
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <div className="overflow-x-auto scrollbar-cherry">
-                  <table className="w-full text-sm border-collapse">
-                    <thead>
-                      <tr className="bg-cherry-50">
-                        <th className="border p-2 text-left text-cherry-700">項目</th>
-                        <th className="border p-2 text-left text-cherry-700">當前</th>
-                        <th className="border p-2 text-left text-cherry-700">上次</th>
-                        <th className="border p-2 text-left text-cherry-700">差異</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {[
-                        { key: 'hp', label: '氣血 (hp)' },
-                        { key: 'd_s', label: '氣盾 (d_s)' },
-                        { key: 'd_d', label: '防禦 (d_d)' },
-                        { key: 'd_f', label: '流派抵禦 (d_f)' },
-                        { key: 'd_e', label: '元素抗性 (d_e)' },
-                        { key: 'b_b', label: '格擋 (b_b)' },
-                        { key: 'baseDamage', label: '原傷害' },
-                        { key: 'finalDamage', label: '減傷後傷害' },
-                        { key: 'ehp', label: '有效氣血 (EHP)' },
-                        { key: 'totalReduction', label: '總減傷率' }
-                      ].map(({ key, label }) => {
-                        const currentValue = key in inputs ? inputs[key] : result[key];
-                        const previousValue = key in previousInputs ? previousInputs[key] : previousResult[key];
-                        const current = parseFloat(currentValue.replace('%', '')) || 0;
-                        const previous = parseFloat(previousValue.replace('%', '')) || 0;
-                        const diff = current - previous;
-                        const isPositive = diff > 0;
-                        return (
-                          <tr key={key} className="hover:bg-cherry-50">
-                            <td className="border p-2 text-gray-700">{label}</td>
-                            <td className="border p-2 font-medium">{currentValue}</td>
-                            <td className="border p-2">{previousValue}</td>
-                            <td className={`border p-2 font-medium ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
-                              {isPositive ? '↑' : '↓'} {Math.abs(diff).toFixed(2)}{key === 'totalReduction' ? '%' : ''}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+              )}
+            </div>
+
+            {/* 方案對比 */}
+            {presets.length >= 2 && (
+              <div className="mb-6">
+                <h4 className="font-semibold text-base text-gray-800 mb-3 flex items-center">
+                  <span className="w-1.5 h-5 rounded-full bg-cherry-500 mr-2"></span>
+                  對比兩個方案
+                </h4>
+                <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+                  <select
+                    className="w-full sm:w-40 border border-gray-300 rounded-lg p-2 text-sm text-gray-700 focus:ring-2 focus:ring-cherry-500 focus:border-cherry-500 transition-colors duration-200"
+                    onChange={(e) => setCompareIndexes((prev) => ({ ...prev, a: e.target.value }))}
+                  >
+                    <option value="">選擇方案</option>
+                    {presets.map((p, i) => (
+                      <option value={i} key={"a" + i}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    className="w-full sm:w-40 border border-gray-300 rounded-lg p-2 text-sm text-gray-700 focus:ring-2 focus:ring-cherry-500 focus:border-cherry-500 transition-colors duration-200"
+                    onChange={(e) => setCompareIndexes((prev) => ({ ...prev, b: e.target.value }))}
+                  >
+                    <option value="">選擇方案</option>
+                    {presets.map((p, i) => (
+                      <option value={i} key={"b" + i}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    className="w-full sm:w-auto bg-cherry-500 hover:bg-cherry-600 text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={comparePresets}
+                    disabled={compareIndexes.a === null || compareIndexes.b === null}
+                  >
+                    開始對比
+                  </button>
                 </div>
-                <div className="mt-4 p-3 bg-cherry-50 rounded-lg">
-                  <h4 className="font-bold text-cherry-700 mb-2 flex items-center">
-                    <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2h-1V9z" clipRule="evenodd" />
-                    </svg>
-                    配置建議
-                  </h4>
-                  <p className="text-xs text-gray-700">
-                    防禦和流派抵禦提升減傷率，適合高傷害場景；高氣血提升EHP，適合多次攻擊場景。若EHP差距不大，選擇攻擊高的配置。
-                  </p>
-                </div>
+
+                {/* 可展開/收起的對比結果表格 */}
+                {compareResult && (
+                  <div className="mt-4">
+                    <div className="flex justify-between items-center mb-2">
+                      <h4 className="font-semibold text-base text-gray-800">方案對比（B - A）</h4>
+                      <button
+                        className="text-sm text-cherry-600 hover:text-cherry-800 font-medium flex items-center gap-1"
+                        onClick={() => setIsTableExpanded(!isTableExpanded)}
+                      >
+                        {isTableExpanded ? (
+                          <>
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                            </svg>
+                            收起
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                            展開
+                          </>
+                        )}
+                      </button>
+                    </div>
+                    {isTableExpanded && (
+                      <div className="overflow-x-auto scrollbar-cherry transition-all duration-300">
+                        <table className="w-full text-sm border-collapse">
+                          <thead>
+                            <tr className="bg-cherry-50">
+                              <th className="border p-2 text-left text-cherry-700">項目</th>
+                              <th className="border p-2 text-left text-cherry-700">
+                                {presets[compareIndexes.a]?.name || "方案 A"}
+                              </th>
+                              <th className="border p-2 text-left text-cherry-700">
+                                {presets[compareIndexes.b]?.name || "方案 B"}
+                              </th>
+                              <th className="border p-2 text-left text-cherry-700">差異</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {[
+                              { key: 'hp', label: '氣血 (hp)' },
+                              { key: 'd_s', label: '氣盾 (d_s)' },
+                              { key: 'd_d', label: '防禦 (d_d)' },
+                              { key: 'd_f', label: '流派抵禦 (d_f)' },
+                              { key: 'd_e', label: '元素抗性 (d_e)' },
+                              { key: 'b_b', label: '格擋 (b_b)' },
+                              { key: 'baseDamage', label: '原傷害' },
+                              { key: 'finalDamage', label: '減傷後傷害' },
+                              { key: 'ehp', label: '有效氣血 (EHP)' },
+                              { key: 'totalReduction', label: '總減傷率' }
+                            ].map(({ key, label }) => {
+                              const aValue = key in presets[compareIndexes.a].data ? presets[compareIndexes.a].data[key] : calculate(presets[compareIndexes.a].data)[key];
+                              const bValue = key in presets[compareIndexes.b].data ? presets[compareIndexes.b].data[key] : calculate(presets[compareIndexes.b].data)[key];
+                              const aNum = parseFloat(aValue.replace('%', '')) || 0;
+                              const bNum = parseFloat(bValue.replace('%', '')) || 0;
+                              const diff = bNum - aNum;
+                              const isPositive = diff >= 0;
+                              return (
+                                <tr key={key} className="hover:bg-cherry-50">
+                                  <td className="border p-2 text-gray-700">{label}</td>
+                                  <td className="border p-2 font-medium">{aValue}</td>
+                                  <td className="border p-2 font-medium">{bValue}</td>
+                                  <td className={`border p-2 font-medium ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
+                                    {diff >= 0 ? '+' : ''}{diff.toFixed(2)}{key === 'totalReduction' ? '%' : ''}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
+
+            <div className="mt-4 p-3 bg-cherry-50 rounded-lg">
+              <h4 className="font-bold text-cherry-700 mb-2 flex items-center">
+                <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2h-1V9z" clipRule="evenodd" />
+                </svg>
+                配置建議
+              </h4>
+              <p className="text-xs text-gray-700">
+                防禦和流派抵禦提升減傷率，適合高傷害場景；高氣血提升EHP，適合多次攻擊場景。若EHP差距不大，選擇攻擊高的配置。
+              </p>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 gap-4 mb-6">
@@ -1227,7 +1414,6 @@
                 <div className="w-1.5 h-5 rounded-full bg-cherry-500 mr-2"></div>
                 <h2 className="font-bold text-base md:text-lg text-gray-800">每200點屬性減傷收益</h2>
               </div>
-              {/* 新增勾選框 */}
               <div className="flex flex-wrap gap-4 mb-4">
                 {[
                   { key: 'ds', label: '氣盾', color: '#3b82f6' },
@@ -1263,7 +1449,6 @@
                     />
                     <Recharts.Tooltip content={<CustomTooltip isDelta={true} />} />
                     <Recharts.Legend wrapperStyle={{ fontSize: 12 }} />
-                    {/* 根據可見性動態渲染曲線 */}
                     {visibility.ds && <Recharts.Line type="monotone" dataKey="ds" name="氣盾" stroke="#3b82f6" strokeWidth={2} dot={false} />}
                     {visibility.dd && <Recharts.Line type="monotone" dataKey="dd" name="防禦" stroke="#10b981" strokeWidth={2} dot={false} />}
                     {visibility.df && <Recharts.Line type="monotone" dataKey="df" name="流派抵禦" stroke="#8b5cf6" strokeWidth={2} dot={false} />}
@@ -1279,7 +1464,6 @@
                 <div className="w-1.5 h-5 rounded-full bg-cherry-500 mr-2"></div>
                 <h2 className="font-bold text-base md:text-lg text-gray-800">減傷率隨屬性點增幅</h2>
               </div>
-              {/* 新增勾選框 */}
               <div className="flex flex-wrap gap-4 mb-4">
                 {[
                   { key: 'ds', label: '氣盾', color: '#3b82f6' },
@@ -1315,7 +1499,6 @@
                     />
                     <Recharts.Tooltip content={<CustomTooltip isDelta={false} />} />
                     <Recharts.Legend wrapperStyle={{ fontSize: 12 }} />
-                    {/* 根據可見性動態渲染曲線 */}
                     {visibility.ds && <Recharts.Line type="monotone" dataKey="ds" name="氣盾" stroke="#3b82f6" strokeWidth={2} dot={false} />}
                     {visibility.dd && <Recharts.Line type="monotone" dataKey="dd" name="防禦" stroke="#10b981" strokeWidth={2} dot={false} />}
                     {visibility.df && <Recharts.Line type="monotone" dataKey="df" name="流派抵禦" stroke="#8b5cf6" strokeWidth={2} dot={false} />}
@@ -1331,8 +1514,10 @@
             <p>防守屬性收益計算器 © {new Date().getFullYear()} | 數據僅供參考</p>
           </div>
         </div>
+
       );
     };
+
 
     const DamageCalculator2 = () => {
       const [inputs, setInputs] = useState({
@@ -1359,10 +1544,11 @@
         E: true, // 元素攻擊
       });
 
-      const [showAttacker, setShowAttacker] = useState(false);
-      const [showDefender, setShowDefender] = useState(false);
+      const [showAttacker, setShowAttacker] = useState(true);
+      const [showDefender, setShowDefender] = useState(true);
       const [showOriginal, setShowOriginal] = useState(true);
       const [showCorrected, setShowCorrected] = useState(true);
+      const [isTableExpanded, setIsTableExpanded] = React.useState(true);
 
       const goldOptions = [
         { value: "0", label: "無金周天" },
@@ -1407,6 +1593,25 @@
       const toNum = (val) => {
         const num = parseFloat(val);
         return isNaN(num) ? 0 : num;
+      };
+
+      const calculateRecommendedBreakDefense = (d_d, lambda_3) => {
+        const d_d_num = toNum(d_d);
+        const lambda_3_num = toNum(lambda_3);
+        if (d_d_num <= 0) return 0;
+        const minBreakDefense = d_d_num - (9 / 11) * lambda_3_num;
+        return Math.ceil(minBreakDefense < 0 ? 0 : minBreakDefense); // 確保不為負數
+      };
+
+      const calculateRecommendedAccuracy = (b_b) => {
+        const b_b_num2 = toNum(b_b);
+        if (b_b_num2 <= 0) return 0;
+        const r_b_val2 = b_b_num2 / (b_b_num2 + 3678);
+        const target2 = r_b_val2 + 0.02447552448; // 0.035 / 1.43 
+        if (target2 >= 1) return '無法達到98%命中';
+        const h_required2 = (target2 * 3678) / (1 - target2);
+        const result2 = Math.ceil(h_required2);
+        return result2 > 0 && result2 < 1000000 ? result2 : 'ERROR';
       };
 
       const calculate = (inputs) => {
@@ -1726,6 +1931,58 @@
       const result = calculate(inputs);
       const { deltaData, increaseData } = generateChartData(inputs);
 
+      const STORAGE_KEY = "damagePresets_attack";
+      // 狀態：保存的方案
+      const [presets, setPresets] = useState(() => JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"));
+      // 狀態：對比用的兩個索引
+      const [compareIndexes, setCompareIndexes] = useState({ a: null, b: null });
+      // 狀態：對比結果
+      const [compareResult, setCompareResult] = useState(null);
+
+      // 儲存目前輸入成為新方案
+      const saveCurrentPreset = () => {
+        if (presets.length >= 4) return alert("最多只能保存 4 組方案！");
+        const name = prompt("請輸入方案名稱：");
+        if (!name) return;
+        const newPresets = [...presets, { name, data: inputs }];
+        setPresets(newPresets);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(newPresets));
+      };
+
+      // 載入指定方案
+      const loadPreset = (i) => setInputs(presets[i].data);
+
+      // 刪除指定方案
+      const deletePreset = (i) => {
+        const updated = presets.filter((_, idx) => idx !== i);
+        setPresets(updated);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      };
+
+      // 執行兩組方案對比
+      const comparePresets = () => {
+        const a = presets[compareIndexes.a]?.data;
+        const b = presets[compareIndexes.b]?.data;
+        if (!a || !b) return;
+
+        // 欄位差值
+        const diff = {};
+        Object.keys(a).forEach(key => {
+          diff[key] = toNum(b[key]) - toNum(a[key]);
+        });
+
+        const resultA = calculate(a);
+        const resultB = calculate(b);
+
+        setCompareResult({
+          diff,
+          resultDiff: {
+            baseDamage: toNum(resultB.baseDamage) - toNum(resultA.baseDamage),
+            finalDamage: toNum(resultB.finalDamage) - toNum(resultA.finalDamage),
+            totalReduction: toNum(resultB.totalReduction) - toNum(resultA.totalReduction)
+          }
+        });
+      };
 
       return (
         <div className="p-4 container mx-auto min-h-screen">
@@ -1743,7 +2000,7 @@
                 <div className="w-1.5 h-5 rounded-full bg-cherry-500 mr-2"></div>
                 <h2 className="font-bold text-base md:text-lg text-gray-800">攻擊方參數</h2>
               </div>
-              <span className="text-cherry-700 text-lg">{showAttacker ? '^' : '⌄'}</span>
+              <span className="text-cherry-700 text-lg">{showAttacker ? '收起' : '展開'}</span>
             </div>
             <div
               className={`transition-all duration-500 overflow-hidden ${showAttacker ? 'max-h-[1500px] opacity-100' : 'max-h-0 opacity-0'}`}
@@ -1821,7 +2078,7 @@
                 <div className="w-1.5 h-5 rounded-full bg-cherry-500 mr-2"></div>
                 <h2 className="font-bold text-base md:text-lg text-gray-800">防守方參數</h2>
               </div>
-              <span className="text-cherry-700 text-lg">{showDefender ? '^' : '⌄'}</span>
+              <span className="text-cherry-700 text-lg">{showDefender ? '收起' : '展開'}</span>
             </div>
             <div
               className={`transition-all duration-500 overflow-hidden ${showDefender ? 'max-h-[1500px] opacity-100' : 'max-h-0 opacity-0'}`}
@@ -1882,7 +2139,7 @@
                 <div className="w-1.5 h-5 rounded-full bg-cherry-500 mr-2"></div>
                 <h2 className="font-bold text-base md:text-lg text-gray-800">原數值屬性</h2>
               </div>
-              <span className="text-cherry-700 text-lg">{showOriginal ? '^' : '⌄'}</span>
+              <span className="text-cherry-700 text-lg">{showOriginal ? '收起' : '展開'}</span>
             </div>
             <div className={`transition-all duration-500 overflow-hidden ${showOriginal ? 'max-h-[1500px] opacity-100' : 'max-h-0 opacity-0'}`}>
               <div className="grid grid-cols-2 gap-3 mb-4">
@@ -1913,7 +2170,7 @@
                 <div className="w-1.5 h-5 rounded-full bg-cherry-500 mr-2"></div>
                 <h2 className="font-bold text-base md:text-lg text-gray-800">修正後屬性</h2>
               </div>
-              <span className="text-cherry-700 text-lg">{showCorrected ? '^' : '⌄'}</span>
+              <span className="text-cherry-700 text-lg">{showCorrected ? '收起' : '展開'}</span>
             </div>
             <div className={`transition-all duration-500 overflow-hidden ${showCorrected ? 'max-h-[1500px] opacity-100' : 'max-h-0 opacity-0'}`}>
               <div className="grid grid-cols-2 gap-3">
@@ -1942,13 +2199,13 @@
                 <h2 className="font-bold text-base md:text-lg text-gray-800">傷害計算結果</h2>
               </div>
               <button
-                onClick={saveCurrentResult}
                 className="bg-cherry-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-cherry-700 transition-colors"
+                onClick={saveCurrentPreset}
               >
-                保存結果
+                保存當前方案
               </button>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mt-6">
               {[
                 { label: "原傷害", value: result.baseDamage, color: "cherry-100" },
                 { label: "修正後傷害", value: result.finalDamage, color: "cherry-100" },
@@ -1961,71 +2218,183 @@
                 </div>
               ))}
             </div>
-            {previousResult && previousInputs && (
-              <div className="mt-6">
-                <div className="flex items-center mb-4">
-                  <div className="w-1.5 h-5 rounded-full bg-cherry-500 mr-2"></div>
-                  <h3 className="font-bold text-base md:text-lg text-gray-800">與上次結果對比</h3>
+            {/* 方案列表 */}
+            <div className="mb-6">
+              <h4 className="font-semibold text-base text-gray-800 mb-3 flex items-center">
+                <span className="w-1.5 h-5 rounded-full bg-cherry-500 mr-2"></span>
+                保存的方案
+              </h4>
+              {presets.length === 0 ? (
+                <p className="text-sm text-gray-500">尚未保存任何方案</p>
+              ) : (
+                <div className="grid gap-2">
+                  {presets.map((preset, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-3 bg-cherry-50 rounded-lg hover:bg-cherry-100 transition-colors duration-200"
+                    >
+                      <span className="font-medium text-gray-700">{preset.name}</span>
+                      <div className="flex gap-2">
+                        <button
+                          className="text-sm text-green-600 hover:text-green-800 font-medium transition-colors duration-200 flex items-center gap-1"
+                          onClick={() => loadPreset(index)}
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                          </svg>
+                          載入
+                        </button>
+                        <button
+                          className="text-sm text-red-600 hover:text-red-800 font-medium transition-colors duration-200 flex items-center gap-1"
+                          onClick={() => deletePreset(index)}
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                          刪除
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <div className="overflow-x-auto scrollbar-cherry">
-                  <table className="w-full text-sm border-collapse">
-                    <thead>
-                      <tr className="bg-cherry-50">
-                        <th className="border p-2 text-left text-cherry-700">項目</th>
-                        <th className="border p-2 text-left text-cherry-700">當前</th>
-                        <th className="border p-2 text-left text-cherry-700">上次</th>
-                        <th className="border p-2 text-left text-cherry-700">差異</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {[
-                        { key: 'D', label: '攻擊' },
-                        { key: 'E', label: '元素攻擊（平均）' },
-                        { key: 'b_d', label: '破防' },
-                        { key: 'R', label: '流派克制' },
-                        { key: 'b_e', label: '忽視元素抗性' },
-                        { key: 'h', label: '命中' },
-                        { key: 'b_s', label: '破盾' },
-                        { key: 'gamma_2', label: '防禦穿透率' },
-                        { key: 'beta_2', label: '元素穿透率' },
-                        { key: 'elementalDamagePrecentage', label: '元素傷害佔比' },
-                        { key: 'baseDamage', label: '原傷害' },
-                        { key: 'finalDamage', label: '修正後傷害' },
-                        { key: 'totalReduction', label: '傷害修正率' }
-                      ].map(({ key, label }) => {
-                        const currentValue = key in inputs ? inputs[key] : result[key];
-                        const previousValue = key in previousInputs ? previousInputs[key] : previousResult[key];
-                        const current = parseFloat(String(currentValue).replace('%', '')) || 0;
-                        const previous = parseFloat(String(previousValue).replace('%', '')) || 0;
-                        const diff = current - previous;
-                        const isPositive = diff > 0;
-                        return (
-                          <tr key={key} className="hover:bg-cherry-50">
-                            <td className="border p-2 text-gray-700">{label}</td>
-                            <td className="border p-2 font-medium">{currentValue}</td>
-                            <td className="border p-2">{previousValue}</td>
-                            <td className={`border p-2 font-medium ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
-                              {isPositive ? '↑' : '↓'} {Math.abs(diff).toFixed(2)}{key === 'totalReduction' ? '%' : ''}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+              )}
+            </div>
+            {/* 方案對比 */}
+            {presets.length >= 2 && (
+              <div className="mb-6">
+                <h4 className="font-semibold text-base text-gray-800 mb-3 flex items-center">
+                  <span className="w-1.5 h-5 rounded-full bg-cherry-500 mr-2"></span>
+                  對比兩個方案
+                </h4>
+                <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+                  <select
+                    className="w-full sm:w-40 border border-gray-300 rounded-lg p-2 text-sm text-gray-700 focus:ring-2 focus:ring-cherry-500 focus:border-cherry-500 transition-colors duration-200"
+                    onChange={(e) => setCompareIndexes((prev) => ({ ...prev, a: e.target.value }))}
+                  >
+                    <option value="">選擇方案</option>
+                    {presets.map((p, i) => (
+                      <option value={i} key={"a" + i}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    className="w-full sm:w-40 border border-gray-300 rounded-lg p-2 text-sm text-gray-700 focus:ring-2 focus:ring-cherry-500 focus:border-cherry-500 transition-colors duration-200"
+                    onChange={(e) => setCompareIndexes((prev) => ({ ...prev, b: e.target.value }))}
+                  >
+                    <option value="">選擇方案</option>
+                    {presets.map((p, i) => (
+                      <option value={i} key={"b" + i}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    className="w-full sm:w-auto bg-cherry-500 hover:bg-cherry-600 text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={comparePresets}
+                    disabled={compareIndexes.a === null || compareIndexes.b === null}
+                  >
+                    開始對比
+                  </button>
                 </div>
-                <div className="mt-4 p-3 bg-cherry-50 rounded-lg">
-                  <h4 className="font-bold text-cherry-700 mb-2 flex items-center">
-                    <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2h-1V9z" clipRule="evenodd" />
-                    </svg>
-                    配置建議
-                  </h4>
-                  <p className="text-xs text-gray-700">
-                    不會玩DPS, 不知道
-                  </p>
-                </div>
+
+                {/* 可展開/收起的對比結果表格 */}
+                {compareResult && (
+                  <div className="mt-4">
+                    <div className="flex justify-between items-center mb-2">
+                      <h4 className="font-semibold text-base text-gray-800">方案對比（B - A）</h4>
+                      <button
+                        className="text-sm text-cherry-600 hover:text-cherry-800 font-medium flex items-center gap-1"
+                        onClick={() => setIsTableExpanded(!isTableExpanded)}
+                      >
+                        {isTableExpanded ? (
+                          <>
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                            </svg>
+                            收起
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                            展開
+                          </>
+                        )}
+                      </button>
+                    </div>
+                    {isTableExpanded && (
+                      <div className="overflow-x-auto scrollbar-cherry transition-all duration-300">
+                        <table className="w-full text-sm border-collapse">
+                          <thead>
+                            <tr className="bg-cherry-50">
+                              <th className="border p-2 text-left text-cherry-700">項目</th>
+                              <th className="border p-2 text-left text-cherry-700">
+                                {presets[compareIndexes.a]?.name || "方案 A"}
+                              </th>
+                              <th className="border p-2 text-left text-cherry-700">
+                                {presets[compareIndexes.b]?.name || "方案 B"}
+                              </th>
+                              <th className="border p-2 text-left text-cherry-700">差異</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {[
+                              { key: 'D', label: '攻擊' },
+                              { key: 'E', label: '元素攻擊（平均）' },
+                              { key: 'b_d', label: '破防' },
+                              { key: 'R', label: '流派克制' },
+                              { key: 'b_e', label: '忽視元素抗性' },
+                              { key: 'h', label: '命中' },
+                              { key: 'b_s', label: '破盾' },
+                              { key: 'gamma_2', label: '防禦穿透率' },
+                              { key: 'beta_2', label: '元素穿透率' },
+                              { key: 'elementalDamagePrecentage', label: '元素傷害佔比' },
+                              { key: 'baseDamage', label: '原傷害' },
+                              { key: 'finalDamage', label: '修正後傷害' },
+                              { key: 'totalReduction', label: '傷害修正率' }
+                            ].map(({ key, label }) => {
+                              const aValue = key in presets[compareIndexes.a].data ? presets[compareIndexes.a].data[key] : calculate(presets[compareIndexes.a].data)[key];
+                              const bValue = key in presets[compareIndexes.b].data ? presets[compareIndexes.b].data[key] : calculate(presets[compareIndexes.b].data)[key];
+                              const aNum = parseFloat(aValue.replace('%', '')) || 0;
+                              const bNum = parseFloat(bValue.replace('%', '')) || 0;
+                              const diff = bNum - aNum;
+                              const isPositive = diff >= 0;
+                              return (
+                                <tr key={key} className="hover:bg-cherry-50">
+                                  <td className="border p-2 text-gray-700">{label}</td>
+                                  <td className="border p-2 font-medium">{aValue}</td>
+                                  <td className="border p-2 font-medium">{bValue}</td>
+                                  <td className={`border p-2 font-medium ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
+                                    {diff >= 0 ? '+' : ''}{diff.toFixed(2)}{key === 'totalReduction' ? '%' : ''}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
+
+            <div className="mt-4 p-3 bg-cherry-50 rounded-lg">
+              <h4 className="font-bold text-cherry-700 mb-2 flex items-center">
+                <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2h-1V9z" clipRule="evenodd" />
+                </svg>
+                配置建議
+              </h4>
+              <p>
+                建議破防：{calculateRecommendedBreakDefense(inputs.d_d, inputs.lambda_3)} 以上
+              </p>
+              <p>
+                建議命中：{calculateRecommendedAccuracy(inputs.b_b)} 以上
+              </p>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 gap-4 mb-6">
@@ -2207,16 +2576,10 @@
       );
     };
 
-
     const root = ReactDOM.createRoot(document.getElementById("root"));
     root.render(<App />);
 
-
   </script>
-
-
-
-
 
 
 </body></html>
