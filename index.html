@@ -790,7 +790,7 @@
         const baseDamage = (
           (toNum(skill_multiplier) / 100) * (((toNum(lambda_1) + toNum(lambda_2) * A_original) * (1 - gamma_original)) +
             toNum(W) * toNum(lambda_2) * toNum(E) * (1 - beta_original))
-        ) * d_mul_original * (1 + toNum(flow_percent)) * (1 + toNum(damage_increase)) * (1 + toNum(skill_damage_increase) / 100);
+        ) * d_mul_original * (1 + toNum(flow_percent)) * (1 + toNum(damage_increase)) * (1 + toNum(skill_damage_increase));
 
         const finalDamage = (
           (toNum(skill_multiplier) / 100) * (((toNum(lambda_1) + toNum(lambda_2) * A) * (1 - gamma)) +
@@ -939,12 +939,12 @@
       const result = calculate(inputs);
       const { deltaData, reductionData } = generateChartData(inputs);
 
-      const STORAGE_KEY = "damagePresets_defense";
-      // 狀態：保存的方案
-      const [presets, setPresets] = useState(() => JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"));
-      // 狀態：對比用的兩個索引
-      const [compareIndexes, setCompareIndexes] = useState({ a: null, b: null });
-      // 狀態：對比結果
+      const STORAGE_KEY = "damagePresets_defense";// 保存的方案
+      
+      const [presets, setPresets] = useState(() => JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"));  //對比用索引
+    
+      const [compareIndexes, setCompareIndexes] = useState({ a: null, b: null });// 對比結果
+      
       const [compareResult, setCompareResult] = useState(null);
 
       // 儲存目前輸入成為新方案
@@ -1668,7 +1668,7 @@
         const baseDamage = (
           (toNumVal(skill_multiplier) / 100) * (((toNumVal(lambda_1) + toNumVal(lambda_2) * A_original) * (1 - gamma_original)) +
             toNumVal(W) * toNumVal(lambda_2) * toNumVal(E) * (1 - beta_original))
-        ) * d_mul_original * (1 + toNumVal(flow_percent)) * (1 + toNumVal(damage_increase)) * (1 + toNumVal(skill_damage_increase) / 100);
+        ) * d_mul_original * (1 + toNumVal(flow_percent)) * (1 + toNumVal(damage_increase)) * (1 + toNumVal(skill_damage_increase));
 
         const finalDamage = (
           (toNumVal(skill_multiplier) / 100) * (((toNumVal(lambda_1) + toNumVal(lambda_2) * A) * (1 - gamma)) +
