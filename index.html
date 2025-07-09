@@ -1,4 +1,6 @@
-<html lang="zh-TW"><head>
+<html lang="zh-TW">
+
+<head>
   <script type="text/javascript">
     var gk_isXlsx = false;
     var gk_xlsxFileLookup = {};
@@ -758,9 +760,10 @@
 
         const c = toNum(b_c) - toNum(b_c_defense);
         const p_c = (115 * c + 90) / (c + 940) / 100 + toNum(gold_i);
-        const r_h = 143 * toNum(h) / (toNum(h) + 3678) / 100;
-        const r_b = 143 * toNum(b_b) / (toNum(b_b) + 3678) / 100;
-        const p_h = Math.min(1, 0.95 + r_h - r_b);
+        const r_h = 143 * toNum(h) / (toNum(h) + 714);
+        const r_b = 143 * toNum(b_b) / (toNum(b_b) + 714);
+        const p_h_percent = 95 + (r_h - r_b);
+        const p_h = Math.min(1, Math.max(0.25, p_h_percent / 100));
         const p_h_1 = 1 - p_h;
         const m_c = 1 + p_c * (toNum(d_c) - 1 - toNum(d_c_defense));
         const d_mul = m_c * p_h + 0.5 * (1 - p_h);
@@ -777,9 +780,10 @@
         const beta = e > 0 ? e / (e + toNum(lambda_4)) : 0;
         const c_original = toNum(b_c);
         const p_c_original = (115 * c_original + 90) / (c_original + 940) / 100 + toNum(gold_i);
-        const r_h_original = r_h;
+        const r_h_original = 143 * toNum(h) / (toNum(h) + 714);
         const r_b_original = 0;
-        const p_h_original = Math.min(1, 0.95 + r_h_original - r_b_original);
+        const p_h_original_percent = 95 + (r_h_original - r_b_original);
+        const p_h_original = Math.min(1, Math.max(0.25, p_h_original_percent / 100));
         const m_c_original = 1 + p_c_original * (toNum(d_c) - 1);
         const d_mul_original = m_c_original * p_h_original + 0.5 * (1 - p_h_original);
         const G_original = toNum(b_s);
@@ -839,9 +843,10 @@
         const calculateDamage = (D, R, b_s, d_s, d_f, b_d, d_d, E, b_e, d_e, b_c, d_c, h, b_b, b_c_defense, d_c_defense, flow_percent, damage_increase, flow_resist_percent, damage_reduction, lambda_1, lambda_2, lambda_3, lambda_4, W, gold_i) => {
           const c = toNum(b_c) - toNum(b_c_defense);
           const p_c = (115 * c + 90) / (c + 940) / 100 + toNum(gold_i);
-          const r_h = 143 * toNum(h) / (toNum(h) + 3678) / 100;
-          const r_b = 143 * toNum(b_b) / (toNum(b_b) + 3678) / 100;
-          const p_h = Math.min(1, 0.95 + r_h - r_b);
+          const r_h = 143 * toNum(h) / (toNum(h) + 714);
+          const r_b = 143 * toNum(b_b) / (toNum(b_b) + 714);
+          const p_h_percent = 95 + (r_h - r_b);
+          const p_h = Math.min(1, Math.max(0.25, p_h_percent / 100));
           const m_c = 1 + p_c * (toNum(d_c) - 1 - toNum(d_c_defense));
           const d_mul = m_c * p_h + 0.5 * (1 - p_h);
           const G = toNum(b_s) >= toNum(d_s)
@@ -940,11 +945,11 @@
       const { deltaData, reductionData } = generateChartData(inputs);
 
       const STORAGE_KEY = "damagePresets_defense";// 保存的方案
-      
+
       const [presets, setPresets] = useState(() => JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"));  //對比用索引
-    
+
       const [compareIndexes, setCompareIndexes] = useState({ a: null, b: null });// 對比結果
-      
+
       const [compareResult, setCompareResult] = useState(null);
 
       // 儲存目前輸入成為新方案
@@ -1154,9 +1159,7 @@
                 {[
                   { label: "真實會心", value: result.c_original },
                   { label: "會心率", value: result.p_c_original },
-                  { label: "命中修正", value: result.r_h_original },
                   { label: "格擋率", value: result.r_b_original },
-                  { label: "命中增幅倍率", value: result.p_h_original },
                   { label: "會心傷害倍率", value: result.m_c_original },
                   { label: "傷害倍率", value: result.d_mul_original },
                   { label: "剩餘氣盾", value: result.G_original },
@@ -1187,9 +1190,7 @@
                 {[
                   { label: "修正會心", value: result.c },
                   { label: "會心率", value: result.p_c },
-                  { label: "命中修正", value: result.r_h },
                   { label: "格擋率", value: result.p_h_1 },
-                  { label: "命中增幅倍率", value: result.p_h },
                   { label: "會心傷害倍率", value: result.m_c },
                   { label: "傷害倍率", value: result.d_mul },
                   { label: "剩餘氣盾", value: result.G },
@@ -1606,10 +1607,10 @@
       const calculateRecommendedAccuracy = (b_b) => {
         const b_b_num2 = toNum(b_b);
         if (b_b_num2 <= 0) return 0;
-        const r_b_val2 = b_b_num2 / (b_b_num2 + 3678);
+        const r_b_val2 = b_b_num2 / (b_b_num2 + 713);
         const target2 = r_b_val2 + 0.02447552448; // 0.035 / 1.43 
         if (target2 >= 1) return '無法達到98%命中';
-        const h_required2 = (target2 * 3678) / (1 - target2);
+        const h_required2 = (target2 * 713) / (1 - target2);
         const result2 = Math.ceil(h_required2);
         return result2 > 0 && result2 < 1000000 ? result2 : 'ERROR';
       };
@@ -1626,9 +1627,11 @@
 
         const c = toNumVal(b_c) - toNumVal(b_c_defense);
         const p_c = (115 * c + 90) / (c + 940) / 100 + toNumVal(gold_i);
-        const r_h = 143 * toNumVal(h) / (toNumVal(h) + 3678) / 100;
-        const r_b = 143 * toNumVal(b_b) / (toNumVal(b_b) + 3678) / 100;
-        const p_h = Math.min(1, 0.95 + r_h - r_b);
+        const r_h = 143 * toNumVal(h) / (toNumVal(h) + 713);
+        const r_b = 143 * toNumVal(b_b) / (toNumVal(b_b) + 713);
+        const p_h_percent = 95 + (r_h - r_b);
+        const p_h = Math.min(1, Math.max(0.25, p_h_percent / 100));
+        const p_h_1 = p_h
         const m_c = 1 + p_c * (toNumVal(d_c) - 1 - toNumVal(d_c_defense));
         const d_mul = m_c * p_h + 0.5 * (1 - p_h);
 
@@ -1653,9 +1656,11 @@
 
         const c_original = toNumVal(b_c);
         const p_c_original = (115 * c_original + 90) / (c_original + 940) / 100 + toNumVal(gold_i);
-        const r_h_original = r_h;
-        const r_b_original = 0;
-        const p_h_original = Math.min(1, 0.95 + r_h_original - r_b_original);
+        const r_h_original = 0;
+        const r_b_original = 143 * toNumVal(b_b) / (toNumVal(b_b) + 713);
+        const p_h_original_percent = 95 + (r_h_original - r_b_original);
+        const p_h_original = Math.min(1, Math.max(0.25, p_h_original_percent / 100));
+        const p_h_1_original = p_h_original;
         const m_c_original = 1 + p_c_original * (toNumVal(d_c) - 1);
         const d_mul_original = m_c_original * p_h_original + 0.5 * (1 - p_h_original);
         const G_original = toNumVal(b_s);
@@ -1694,12 +1699,12 @@
           if (b_b_num === 0) {
             return 0;
           }
-          const r_b_val = 143 * b_b_num / (b_b_num + 3678) / 100;
+          const r_b_val = 143 * b_b_num / (b_b_num + 713) / 100;
           const r_h_target = 0.05 + r_b_val;
           if (r_h_target >= 1.43) { // 143/100 = 1.43是理论最大值
             return '無法滿命中';
           }
-          const numerator = r_h_target * 100 * 3678;
+          const numerator = r_h_target * 100 * 713;
           const denominator = 143 - r_h_target * 100;
 
           if (denominator <= 0) {
@@ -1719,6 +1724,7 @@
           r_h: (r_h * 100).toFixed(2) + "%",
           r_b: (r_b * 100).toFixed(2) + "%",
           p_h: p_h.toFixed(4),
+          p_h_1: (p_h_1 * 100).toFixed(2) + "%",
           m_c: m_c.toFixed(4),
           d_mul: d_mul.toFixed(4),
           G: G.toFixed(2),
@@ -1733,6 +1739,7 @@
           r_h_original: (r_h_original * 100).toFixed(2) + "%",
           r_b_original: (r_b_original * 100).toFixed(2) + "%",
           p_h_original: p_h_original.toFixed(4),
+          p_h_1_original: (p_h_1 * 100).toFixed(2) + "%",
           m_c_original: m_c_original.toFixed(4),
           d_mul_original: d_mul_original.toFixed(4),
           G_original: G_original.toFixed(2),
@@ -1767,9 +1774,10 @@
         const calculateDamage = (D, E, R, b_d, b_e, b_s, h) => {
           const c = toNum(inputs.b_c) - toNum(inputs.b_c_defense);
           const p_c = (115 * c + 90) / (c + 940) / 100 + toNum(inputs.gold_i);
-          const r_h = 143 * toNum(h) / (toNum(h) + 3678) / 100;
-          const r_b = 143 * toNum(inputs.b_b) / (toNum(inputs.b_b) + 3678) / 100;
-          const p_h = Math.min(1, 0.95 + r_h - r_b);
+          const r_h = 143 * toNum(h) / (toNum(h) + 713);
+          const r_b = 143 * toNum(inputs.b_b) / (toNum(inputs.b_b) + 713);
+          const p_h_percent = 95 + (r_h - r_b);
+          const p_h = Math.min(1, Math.max(0.25, p_h_percent / 100));
           const m_c = 1 + p_c * (toNum(inputs.d_c) - 1 - toNum(inputs.b_c_defense));
           const d_mul = m_c * p_h + 0.5 * (1 - p_h);
           const G = toNum(b_s) >= toNum(inputs.d_s)
@@ -1798,12 +1806,12 @@
           const b_b_num = toNum(b_b);
           if (b_b_num === 0) return 0;
 
-          const r_b_val = 143 * b_b_num / (b_b_num + 3678) / 100;
+          const r_b_val = 143 * b_b_num / (b_b_num + 713) / 100;
           const r_h_target = 0.05 + r_b_val;
 
           if (r_h_target >= 1.43) return 10000; // 設定一個高值表示無法達成
 
-          const numerator = r_h_target * 100 * 3678;
+          const numerator = r_h_target * 100 * 713;
           const denominator = 143 - r_h_target * 100;
 
           if (denominator <= 0) return 10000;
@@ -2145,7 +2153,7 @@
               <div className="grid grid-cols-2 gap-3 mb-4">
                 {[{ label: "真實會心", value: result.c_original },
                 { label: "會心率", value: result.p_c_original },
-                { label: "命中增幅倍率", value: result.p_h_original },
+                { label: "命中率", value: result.p_h_1_original },
                 { label: "會心傷害倍率", value: result.m_c_original },
                 { label: "傷害倍率", value: result.d_mul_original },
                 { label: "剩餘氣盾", value: result.G_original },
@@ -2176,7 +2184,7 @@
               <div className="grid grid-cols-2 gap-3">
                 {[{ label: "修正會心", value: result.c },
                 { label: "會心率", value: result.p_c },
-                { label: "命中增幅倍率", value: result.p_h },
+                { label: "命中率", value: result.p_h_1 },
                 { label: "會心傷害倍率", value: result.m_c },
                 { label: "傷害倍率", value: result.d_mul },
                 { label: "剩餘氣盾", value: result.G },
@@ -2582,4 +2590,6 @@
   </script>
 
 
-</body></html>
+</body>
+
+</html>
