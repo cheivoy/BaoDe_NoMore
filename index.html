@@ -801,7 +801,7 @@
             toNum(W) * toNum(lambda_2) * toNum(E) * (1 - beta))
         ) * d_mul * (1 + toNum(flow_percent) - toNum(flow_resist_percent)) * (1 + toNum(damage_increase) - toNum(damage_reduction)) * (1 + toNum(skill_damage_increase) / 100 - toNum(skill_damage_reduction) / 100);
 
-        const totalReduction = (baseDamage - finalDamage) / baseDamage || 0;
+        const totalReduction = 1 - finalDamage / baseDamage || 0;
         const ehp = toNum(hp) / (1 - totalReduction) || toNum(hp);
 
         return {
@@ -1680,7 +1680,7 @@
             toNumVal(W) * toNumVal(lambda_2) * toNumVal(E) * (1 - beta))
         ) * d_mul * (1 + toNumVal(flow_percent) - toNumVal(flow_resist_percent)) * (1 + toNumVal(damage_increase) - toNumVal(damage_reduction)) * (1 + toNumVal(skill_damage_increase) / 100 - toNumVal(skill_damage_reduction) / 100);
 
-        const totalReduction = (baseDamage - finalDamage) / baseDamage || 0;
+        const totalReduction = finalDamage / baseDamage || 0;
         const ehp = toNumVal(hp) / (1 - totalReduction) || toNumVal(hp);
 
         const base_elementalDamage = (
@@ -2218,7 +2218,7 @@
                 { label: "原傷害", value: result.baseDamage, color: "cherry-100" },
                 { label: "修正後傷害", value: result.finalDamage, color: "cherry-100" },
                 { label: "滿命中", value: result.full_ph, color: "cherry-100" },
-                { label: "傷害抵消率", value: result.totalReduction, color: "cherry-500", text: "white" },
+                { label: "實際生效傷害百分比", value: result.totalReduction, color: "cherry-500", text: "white" },
               ].map(({ label, value, color, text }) => (
                 <div key={label} className={`bg-${color} p-3 rounded-lg`}>
                   <p className={`text-xs ${text ? `text-${text}` : 'text-cherry-700'}`}>{label}</p>
@@ -2361,7 +2361,7 @@
                               { key: 'elementalDamagePrecentage', label: '元素傷害佔比' },
                               { key: 'baseDamage', label: '原傷害' },
                               { key: 'finalDamage', label: '修正後傷害' },
-                              { key: 'totalReduction', label: '傷害修正率' }
+                              { key: 'totalReduction', label: '實際生效傷害百分比' }
                             ].map(({ key, label }) => {
                               const aValue = key in presets[compareIndexes.a].data ? presets[compareIndexes.a].data[key] : calculate(presets[compareIndexes.a].data)[key];
                               const bValue = key in presets[compareIndexes.b].data ? presets[compareIndexes.b].data[key] : calculate(presets[compareIndexes.b].data)[key];
