@@ -2557,7 +2557,7 @@
         const beta_2 = beta > 0 ? 1 - beta : 1;
 
         const c_original = toNum(b_c);
-        const p_c_original = Math.max(0, (115 * c + 90) / (c + 940) / 100 + toNum(gold_i));
+        const p_c_original = Math.max(0, (115 * c_original + 90) / (c_original + 940) / 100 + toNum(gold_i));
         const r_h_original = 0;
         const r_b_original = 143 * toNum(b_b) / (toNum(b_b) + 713);
         const p_h_original_percent = 95 + (r_h_original - r_b_original);
