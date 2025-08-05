@@ -2802,7 +2802,7 @@
         const fullHitRequired = calculateRequiredH(toNum(inputs.b_b));
         const baselineH = Math.min(fullHitRequired, 10000);
         const baseDamage = calculateDamage(
-          toNum(inputs.D), toNum(inputs.E), 0, 0, 0, 0, baselineH, toNum(inputs.b_c), toNum(inputs.d_c)
+          toNum(inputs.D), toNum(inputs.E), 0, 0, 0, 0, baselineH, 0, 1.5
         );
 
         const calculateIncrease = (attr, value) => {
@@ -2814,8 +2814,8 @@
             b_e: 0,
             b_s: 0,
             h: baselineH,
-            b_c: toNum(inputs.b_c),
-            d_c: toNum(inputs.d_c),
+            b_c: 0,
+            d_c: 1.5,
           };
 
           if (attr === 'b_c') {
