@@ -812,8 +812,8 @@
       ) => {
         const c = safeNum(b_c) - safeNum(b_c_defense);
         const p_c = Math.min(1, Math.max(0, (115 * c + 90) / (c + 940) / 100 + safeNum(gold_i)));
-        const r_h = (143 * safeNum(h)) / (safeNum(h) + 714);
-        const r_b = (143 * safeNum(b_b)) / (safeNum(b_b) + 714);
+        const r_h = (143 * safeNum(h)) / (safeNum(h) + 713);
+        const r_b = (143 * safeNum(b_b)) / (safeNum(b_b) + 713);
         const p_h_percent = 95 + (r_h - r_b);
         const p_h = Math.min(1, Math.max(0.25, p_h_percent / 100));
         const m_c = 1 + p_c * (safeNum(d_c) - 1 - safeNum(d_c_defense));
@@ -885,8 +885,8 @@
           1,
           Math.max(0, (115 * c + 90) / (c + 940) / 100 + safeNum(gold_i))
         );
-        const r_h = (143 * safeNum(h)) / (safeNum(h) + 714);
-        const r_b = (143 * safeNum(b_b)) / (safeNum(b_b) + 714);
+        const r_h = (143 * safeNum(h)) / (safeNum(h) + 713);
+        const r_b = (143 * safeNum(b_b)) / (safeNum(b_b) + 713);
         const p_h_percent = 95 + (r_h - r_b);
         const p_h = Math.min(1, Math.max(0.25, p_h_percent / 100));
         const p_h_1 = 1 - p_h;
@@ -2387,8 +2387,8 @@
         return saved ? JSON.parse(saved) : {
           skill_multiplier: '1518', D: '5000', E: '800', b_c: '900', d_c: '1.8', R: '500', h: '700',
           b_d: '2000', b_s: '700', b_e: '0', flow_percent: '0', damage_increase: '0',
-          skill_damage_increase: '0', d_s: '2000', d_f: '2000', d_d: '5000', d_e: '500', b_b: '600', hp: '80000',
-          b_c_defense: '550', d_c_defense: '0.25', flow_resist_percent: '0.1', damage_reduction: '0',
+          skill_damage_increase: '0', d_s: '2000', d_f: '2000', d_d: '5000', d_e: '0', b_b: '600', hp: '80000',
+          b_c_defense: '550', d_c_defense: '0', flow_resist_percent: '0', damage_reduction: '0',
           skill_damage_reduction: '0', lambda_1: '358', lambda_2: '0.359', lambda_3: '2860', lambda_4: '531', W: '1',
           gold_i: '0',
         };
@@ -2396,7 +2396,7 @@
           skill_multiplier: '1518', D: '5000', E: '800', b_c: '900', d_c: '1.8', R: '500', h: '700',
           b_d: '2000', b_s: '700', b_e: '0', flow_percent: '0', damage_increase: '0',
           skill_damage_increase: '0', d_s: '2000', d_f: '2000', d_d: '5000', d_e: '0', b_b: '600', hp: '80000',
-          b_c_defense: '550', d_c_defense: '0.25', flow_resist_percent: '0.1', damage_reduction: '0',
+          b_c_defense: '550', d_c_defense: '0', flow_resist_percent: '0', damage_reduction: '0',
           skill_damage_reduction: '0', lambda_1: '358', lambda_2: '0.359', lambda_3: '2860', lambda_4: '531', W: '1',
           gold_i: '0',
         };
@@ -2574,8 +2574,8 @@
         const p_h_1_original = p_h_original;
         const m_c_original = 1 + p_c_original * (toNum(d_c) - 1);
         const d_mul_original = m_c_original * p_h_original + 0.5 * (1 - p_h_original);
-        const G_original = toNum(b_s);
-        const A_original = toNum(D) + toNum(R) + G_original;
+        const G_original = 0
+        const A_original = toNum(D) + toNum(R) - G_original;
         const gamma_original = 0;
         const beta_original = 0;
         const gamma_original_2 = 1 - gamma_original;
@@ -2624,6 +2624,37 @@
 
         const full_ph = calculateRequiredH(inputs.b_b);
 
+        // ===== 新增：計算理論最大傷害（無防守屬性）=====
+
+        // 攻擊方在無防守干擾下的理論最大傷害
+        const c_theoretical = toNum(b_c);  // 攻擊方會心（無抗會心）
+        const p_c_theoretical = Math.max(0, (115 * c_theoretical + 90) / (c_theoretical + 940) / 100 + toNum(gold_i));
+        const r_h_theoretical = 143 * toNum(h) / (toNum(h) + 713);  // 攻擊方命中
+        const r_b_theoretical = 0;  // 防守方格擋 = 0
+        const p_h_theoretical = Math.min(1, Math.max(0.25, (95 + r_h_theoretical - r_b_theoretical) / 100));
+        const m_c_theoretical = 1 + p_c_theoretical * (toNum(d_c) - 1);  // 無會心防禦
+        const d_mul_theoretical = m_c_theoretical * p_h_theoretical + 0.5 * (1 - p_h_theoretical);
+
+        // 理論最大攻擊力（無氣盾、無防禦、無元素抗性）
+        const A_theoretical = toNum(D) + toNum(R);  // 無氣盾減免
+
+        // 理論最大傷害
+        const theoreticalMaxDamage = (toNum(skill_multiplier) / 100) *
+          (toNum(lambda_1) + toNum(lambda_2) * A_theoretical + toNum(W) * toNum(lambda_2) * toNum(E)) *
+          d_mul_theoretical *
+          (1 + toNum(flow_percent)) *
+          (1 + toNum(damage_increase)) *
+          (1 + toNum(skill_damage_increase) / 100);
+
+        // ===== 計算生效率 =====
+        const effectivenessRate = theoreticalMaxDamage > 0
+          ? finalDamage / theoreticalMaxDamage
+          : 0;
+
+        // ===== 計算增傷倍率（原有邏輯）=====
+        const damageMultiplier = finalDamage / baseDamage || 0;
+
+
         return {
           c: c.toFixed(2),
           p_c: (p_c * 100).toFixed(2) + '%',
@@ -2663,6 +2694,9 @@
           base_elementalDamagePrecentage: (base_elementalDamagePrecentage * 100).toFixed(2) + '%',
           elementalDamagePrecentage: (elementalDamagePrecentage * 100).toFixed(2) + '%',
           full_ph: typeof full_ph === 'number' ? full_ph.toFixed(0) : full_ph,
+          theoreticalMaxDamage: theoreticalMaxDamage.toFixed(2),
+          effectivenessRate: (effectivenessRate * 100).toFixed(2) + '%',
+          damageMultiplier: damageMultiplier.toFixed(2) + '倍',
         };
       };
 
@@ -3268,19 +3302,34 @@
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mt-6">
                 {[
-                  { label: "原傷害", value: result.baseDamage, color: "pink-100" },
-                  { label: "修正後傷害", value: result.finalDamage, color: "pink-100" },
-                  { label: "滿命中", value: result.full_ph, color: "pink-100" },
+                  { label: "理論最大傷害", value: result.theoreticalMaxDamage, color: "pink-100" },
+                  { label: "實際傷害", value: result.finalDamage, color: "pink-100" },
                   {
-                    label: "實際生效傷害百分比",
-                    value: result.totalReduction,
+                    label: "傷害生效率",
+                    value: result.effectivenessRate,
                     color: "pink-500",
                     text: "white",
+                    tooltip: "實際傷害相對於理論最大傷害的比率"
                   },
-                ].map(({ label, value, color, text }) => (
-                  <div key={label} className={`bg-${color} p-3 rounded-lg`}>
-                    <p className={`text-xs ${text ? `text-${text}` : "text-pink-700"}`}>
+                  {
+                    label: "攻擊增傷倍率",
+                    value: result.damageMultiplier,
+                    color: "blue-500",
+                    text: "white",
+                    tooltip: "當前攻擊配置相對於最低攻擊配置的倍率"
+                  },
+                ].map(({ label, value, color, text, tooltip }) => (
+                  <div key={label} className={`bg-${color} p-3 rounded-lg group relative`}>
+                    <p className={`text-xs ${text ? `text-${text}` : "text-pink-700"} flex items-center`}>
                       {label}
+                      {tooltip && (
+                        <>
+                          <span className="ml-1 flex items-center justify-center w-3 h-3 rounded-full bg-gray-400 text-white text-xs cursor-help">?</span>
+                          <div className="absolute left-0 bottom-full mb-2 bg-gray-800 text-white text-xs p-2 rounded-lg shadow-md z-10 max-w-xs opacity-0 group-hover:opacity-100 transition-opacity whitespace-normal">
+                            {tooltip}
+                          </div>
+                        </>
+                      )}
                     </p>
                     <p className={`text-lg font-bold ${text ? `text-${text}` : "text-pink-800"}`}>
                       {value}
