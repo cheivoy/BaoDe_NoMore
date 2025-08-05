@@ -2416,7 +2416,7 @@
       const [previousResult, setPreviousResult] = useState(null);
       const [previousInputs, setPreviousInputs] = useState(null);
       const [visibility, setVisibility] = useState({
-        b_d: true, b_e: true, R: true, h: true, D: true, E: true, b_s: true, b_c: true, 
+        b_d: true, b_e: true, R: true, h: true, D: false, E: false, b_s: true, b_c: true,
       });
       const [showAttacker, setShowAttacker] = useState(true);
       const [showDefender, setShowDefender] = useState(true);
@@ -2430,7 +2430,7 @@
       const [investmentPoints, setInvestmentPoints] = useState({
         D: 200, E: 200, R: 200, b_d: 200, b_e: 200, b_s: 200, h: 200, b_c: 200,
       });
-      const [critDamagePercent, setCritDamagePercent] = useState(50);
+      const [critDamagePercent, setCritDamagePercent] = useState(10);
       const [recommendationData, setRecommendationData] = useState([]);
       const [analysisMode, setAnalysisMode] = useState('incremental');
 
@@ -2464,7 +2464,16 @@
         { value: '1.1', label: '碎夢大特' },
       ];
 
-      const colors = ['#3b82f6', '#10b981', '#8b5cf6', '#14b8a6', '#f97316', '#d084d0', '#a4de6c', '#ff6b6b', '#fbbf24'];
+      const colors = [
+        '#db2537',      // 攻擊 - 深紅
+        '#ff6b6b',      // 元素攻擊 - 淺紅
+        '#14b8a6',      // 流派克制 - 青綠
+        '#3b82f6',    // 破防 - 藍色
+        '#10b981',    // 忽視元素抗性 - 綠色
+        '#8b5cf6',    // 破盾 - 紫色
+        '#f59e0b',      // 命中 - 橙色
+        '#ec4899',    // 會心 - 粉色
+      ];
 
       const toNum = (val) => {
         const num = parseFloat(val);
@@ -2715,13 +2724,13 @@
 
       const handleSelectAll = () => {
         setVisibility({
-          b_d: true, b_e: true, R: true, D: true, E: true, b_s: true, b_c: true, 
+          b_d: true, b_e: true, R: true, D: true, E: true, b_s: true, b_c: true,
         });
       };
 
       const handleDeselectAll = () => {
         setVisibility({
-          b_d: false, b_e: false, R: false, h: false, D: false, E: false, b_s: false, b_c: false, 
+          b_d: false, b_e: false, R: false, h: false, D: false, E: false, b_s: false, b_c: false,
         });
       };
 
@@ -2778,7 +2787,7 @@
 
       const generateChartData = (inputs) => {
         const min_b_c = toNum(inputs.b_c_defense);
-        const attribute_points = Array.from({ length: 201 }, (_, i) =>  i * 50);
+        const attribute_points = Array.from({ length: 201 }, (_, i) => i * 50);
         const increases = { b_d: [], b_e: [], D: [], E: [], R: [], b_s: [], h: [], b_c: [] };
         const delta_increases = { b_d: [], b_e: [], D: [], E: [], R: [], b_s: [], h: [], b_c: [] };
 
@@ -2801,30 +2810,39 @@
 
         const fullHitRequired = calculateRequiredH(toNum(inputs.b_b));
         const baselineH = Math.min(fullHitRequired, 10000);
-        const baseDamage = calculateDamage(
-          toNum(inputs.D), toNum(inputs.E), 0, 0, 0, 0, baselineH, 0, 1.5
-        );
+        // 修正基礎傷害計算，根據分析模式選擇不同的基準
+        const baseDamage = analysisMode === 'from_zero'
+          ? calculateDamage(
+            toNum(inputs.D), toNum(inputs.E), 0, 0, 0, 0, baselineH, 0, 1.5
+          )
+          : toNum(calculate(inputs).finalDamage);
 
         const calculateIncrease = (attr, value) => {
           const params = {
-            D: toNum(inputs.D),
-            E: toNum(inputs.E),
-            R: 0,
-            b_d: 0,
-            b_e: 0,
-            b_s: 0,
-            h: baselineH,
-            b_c: 0,
-            d_c: 1.5,
+            D: analysisMode === 'from_zero' ? toNum(inputs.D) : toNum(inputs.D),
+            E: analysisMode === 'from_zero' ? toNum(inputs.E) : toNum(inputs.E),
+            R: analysisMode === 'from_zero' ? 0 : toNum(inputs.R),
+            b_d: analysisMode === 'from_zero' ? 0 : toNum(inputs.b_d),
+            b_e: analysisMode === 'from_zero' ? 0 : toNum(inputs.b_e),
+            b_s: analysisMode === 'from_zero' ? 0 : toNum(inputs.b_s),
+            h: analysisMode === 'from_zero' ? baselineH : toNum(inputs.h),
+            b_c: analysisMode === 'from_zero' ? 0 : toNum(inputs.b_c),
+            d_c: analysisMode === 'from_zero' ? 1.5 : toNum(inputs.d_c),
           };
 
-          if (attr === 'b_c') {
-            params[attr] = value;
-          } else if (['R', 'b_d', 'b_e', 'b_s'].includes(attr)) {
-            params[attr] = value;
-          } else if (attr === 'h') {
-            params[attr] = baselineH + value;
+          if (analysisMode === 'from_zero') {
+            // 從零開始模式：直接設置為輸入值
+            if (attr === 'b_c') {
+              params[attr] = value;
+            } else if (['R', 'b_d', 'b_e', 'b_s'].includes(attr)) {
+              params[attr] = value;
+            } else if (attr === 'h') {
+              params[attr] = baselineH + value;
+            } else {
+              params[attr] = toNum(inputs[attr]) + value;
+            }
           } else {
+            // 增量模式：在現有基礎上增加
             params[attr] = toNum(inputs[attr]) + value;
           }
 
@@ -3703,19 +3721,19 @@
                   {recommendationData
                     .filter((attr) => attr.attribute !== "d_c_percent")
                     .map((attr, index) => (
-                    <label key={attr.attribute} className="flex items-center space-x-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={visibility[attr.attribute] || false}
-                        onChange={() => handleCurveToggle(attr.attribute)}
-                        className="w-4 h-4 text-pink-600 rounded focus:ring-pink-500"
-                      />
-                      <div className="flex items-center space-x-2">
-                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: colors[index % colors.length] }}></div>
-                        <span className="text-sm text-gray-700">{attr.label}</span>
-                      </div>
-                    </label>
-                  ))}
+                      <label key={attr.attribute} className="flex items-center space-x-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={visibility[attr.attribute] || false}
+                          onChange={() => handleCurveToggle(attr.attribute)}
+                          className="w-4 h-4 text-pink-600 rounded focus:ring-pink-500"
+                        />
+                        <div className="flex items-center space-x-2">
+                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: colors[index % colors.length] }}></div>
+                          <span className="text-sm text-gray-700">{attr.label}</span>
+                        </div>
+                      </label>
+                    ))}
                 </div>
               </div>
               {increaseData.length > 0 ? (
@@ -3738,17 +3756,19 @@
                       labelFormatter={(points) => `投入點數: ${points}`}
                     />
                     <Legend />
-                    {recommendationData.map((attr, index) => visibility[attr.attribute] && (
-                      <Line
-                        key={attr.attribute}
-                        type="monotone"
-                        dataKey={attr.attribute}
-                        stroke={colors[index % colors.length]}
-                        strokeWidth={2}
-                        dot={false}
-                        name={attr.label}
-                      />
-                    ))}
+                    {recommendationData
+                      .filter((attr) => attr.attribute !== "d_c_percent")
+                      .map((attr, index) => visibility[attr.attribute] && (
+                        <Line
+                          key={attr.attribute}
+                          type="monotone"
+                          dataKey={attr.attribute}
+                          stroke={colors[index % colors.length]}
+                          strokeWidth={2}
+                          dot={false}
+                          name={attr.label}
+                        />
+                      ))}
                   </LineChart>
                 </ResponsiveContainer>
               ) : (
@@ -3826,7 +3846,7 @@
                       {visibility.b_c && (
                         <Line type="monotone" dataKey="b_c" name="會心" stroke="#f59e0b" strokeWidth={2} dot={false} />
                       )}
-                      
+
                     </LineChart>
                   </ResponsiveContainer>
                 ) : (
