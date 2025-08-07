@@ -816,7 +816,7 @@
         const r_b = (143 * safeNum(b_b)) / (safeNum(b_b) + 713);
         const p_h_percent = 95 + (r_h - r_b);
         const p_h = Math.min(1, Math.max(0.25, p_h_percent / 100));
-        const m_c = 1 + p_c * (safeNum(d_c) - 1 - safeNum(d_c_defense));
+        const m_c = 1 + p_c *Math.max(0,(safeNum(d_c) - 1 - safeNum(d_c_defense)));
         const d_mul = m_c * p_h + 0.5 * (1 - p_h);
         const G = safeNum(b_s) >= safeNum(d_s)
           ? 0
@@ -2543,7 +2543,7 @@
         const p_h_percent = 95 + (r_h - r_b);
         const p_h = Math.min(1, Math.max(0.25, p_h_percent / 100));
         const p_h_1 = p_h;
-        const m_c = 1 + p_c * (toNum(d_c) - 1 - toNum(d_c_defense));
+        const m_c = 1 + p_c * Math.max(0, toNum(d_c) - 1 - toNum(d_c_defense)));
         const d_mul = m_c * p_h + 0.5 * (1 - p_h);
 
         const G = toNum(b_s) >= toNum(d_s)
