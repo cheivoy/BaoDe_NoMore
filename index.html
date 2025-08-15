@@ -547,39 +547,210 @@
       );
     };
 
-    // HealingCalculator Component
+    //治療計算機-更新
+    // HealingCalculator Component - 完善版
     const HealingCalculator = () => {
       const [inputs, setInputs] = useState({
+        // 原有的治疗强度阈值转换字段
         armor_break: "0",
         hit: "0",
         elemental_attack: "0",
         boss_restraint: "0",
         faction_restraint: "0",
         resistance_ignore: "0",
-        healing_power_equip: "0"
+        healing_power_equip: "0",
+        // 新增的治疗量计算字段
+        max_attack: "5000",
+        min_attack: "4500",
+        crit: "900",
+        crit_damage: "180",
+        healing_power: "2000",
+        skill_level: "10",
+        gold_i: "0",
+        water_constellation: "0",
+        faction_skills: "0",
+        permanent_skill: "0",
+        skill_type: "chuzhan",
+        custom_permanent_skill: "0",
+        healing_decrease: "0"
       });
+
       const [inputErrors, setInputErrors] = useState({});
+      const [showThresholdCalculator, setShowThresholdCalculator] = useState(true);
+      const [showHealingCalculator, setShowHealingCalculator] = useState(true);
+      const [showInvestmentAnalysis, setShowInvestmentAnalysis] = useState(true);
+      const [showIncrementalAnalysis, setShowIncrementalAnalysis] = useState(true);
+      const [analysisMode, setAnalysisMode] = useState('incremental');
+      const [visibility, setVisibility] = useState({
+        max_attack: true,
+        healing_power: true,
+        crit: true,
+        crit_damage: true,
+      });
+      const [investmentPoints, setInvestmentPoints] = useState({
+        max_attack: 200,
+        healing_power: 200,
+        crit: 200,
+        crit_damage: 10, // 10%增量
+      });
+      const [recommendationData, setRecommendationData] = useState([]);
+
+      const goldOptions = [
+        { value: '0', label: '無金周天' },
+        { value: '0.03', label: '金周天1級' },
+        { value: '0.04', label: '金周天2級' },
+        { value: '0.05', label: '金周天3級' },
+      ];
+
+      const waterConstellationOptions = [
+        { value: '0', label: '無水周天' },
+        { value: '0.04', label: '水周天1級 4%' },
+        { value: '0.05', label: '水周天2級 5%' },
+        { value: '0.06', label: '水周天3級 6%' },
+      ];
+
+      const factionSkillsOptions = [
+        { value: '0', label: '無流派技能' },
+        { value: '0.05', label: '一個 5%' },
+        { value: '0.10', label: '兩個 10%' },
+        { value: '0.15', label: '三個 15%' },
+        { value: '0.20', label: '四個 20%' },
+        { value: '0.30', label: '五個 30%' },
+      ];
+
+      const permanentSkillOptions = [
+        { value: '0', label: '無常駐内功' },
+        { value: '0.05', label: '内功日月 5%' },
+        { value: 'custom', label: '其他（可輸入）' },
+      ];
+
+      const skillTypeOptions = [
+        { value: 'chuzhan', label: '初綻(化境) - 366%治療倍率+霞光18%' },
+        { value: 'fufeng', label: '扶風(化境) - 79%治療倍率/秒' },
+        { value: 'qingfeng', label: '清風垂露(化境) - 75%初始+31%/3秒持續' },
+        { value: 'caiyi', label: '彩翼(化境) - 100%初始+25%/秒持續' },
+        { value: 'pingA', label: '點絳(化境) - 31%對目標+52%對自身' },
+        { value: 'beidongqun', label: '蝶戀花·夢染 - 81%群體治療' },
+      ];
+
+      const colors = [
+        '#3b82f6', '#10b981', '#8b5cf6', '#14b8a6', '#f97316', '#d084d0'
+      ];
 
       const handleChange = (e) => {
         const { name, value } = e.target;
-        if (value < 0) {
-          setInputErrors((prev) => ({ ...prev, [name]: '輸入值不能為負數' }));
-          return;
+        if (['gold_i', 'water_constellation', 'faction_skills', 'permanent_skill', 'skill_type'].includes(name)) {
+          setInputs((prev) => ({ ...prev, [name]: value }));
+          setInputErrors((prev) => ({ ...prev, [name]: '' }));
+        } else {
+          if (value < 0) {
+            setInputErrors((prev) => ({ ...prev, [name]: '輸入值不能為負數' }));
+            return;
+          }
+          if (value > 1000000) {
+            setInputErrors((prev) => ({ ...prev, [name]: '輸入值過大，最大為1000000' }));
+            return;
+          }
+          setInputs((prev) => ({ ...prev, [name]: value }));
+          setInputErrors((prev) => ({ ...prev, [name]: '' }));
         }
-        if (value > 1000000) {
-          setInputErrors((prev) => ({ ...prev, [name]: '輸入值過大，最大為100000' }));
-          return;
-        }
-        setInputs((prev) => ({ ...prev, [name]: value }));
-        setInputErrors((prev) => ({ ...prev, [name]: '' }));
       };
 
-      const calculateHealing = () => {
+      const toNum = (val) => parseFloat(val) || 0;
+
+      // 获取技能参数
+      const getSkillParams = (skillType) => {
+        const skillParams = {
+          chuzhan: {
+            initialMultiplier: 3.66,
+            continuousMultiplier: 0,
+            targetMultiplier: 0,
+            selfMultiplier: 0,
+            lamer1: 81.5,
+            lamer2: 303,
+            skillBonus: 0.1,
+            guangEffect: 0, // 移除自带霞光转换
+            description: '爆發治療',
+            hasLuoxia: true,
+            type: 'burst'
+          },
+          fufeng: {
+            initialMultiplier: 0,
+            continuousMultiplier: 0.79,
+            continuousInterval: 1, // 每秒
+            targetMultiplier: 0,
+            selfMultiplier: 0,
+            lamer1: 25,
+            lamer2: 165,
+            skillBonus: 0.1,
+            guangEffect: 0,
+            description: '持續治療(每秒)',
+            hasLuoxia: true,
+            type: 'continuous'
+          },
+          qingfeng: {
+            initialMultiplier: 0.75,
+            continuousMultiplier: 0.31, // 每3秒触发一次，显示时需要注明
+            continuousInterval: 3, // 3秒间隔
+            targetMultiplier: 0,
+            selfMultiplier: 0,
+            lamer1: 35,
+            lamer2: 220,
+            skillBonus: 0.1,
+            guangEffect: 0,
+            description: '初始群體治療+持續治療',
+            hasLuoxia: true,
+            type: 'mixed'
+          },
+          caiyi: {
+            initialMultiplier: 1.0,
+            continuousMultiplier: 0.25,
+            continuousInterval: 1, // 每秒
+            targetMultiplier: 0,
+            selfMultiplier: 0,
+            lamer1: 40,
+            lamer2: 240,
+            skillBonus: 0.1,
+            guangEffect: 0,
+            description: '初始治療+持續治療(每秒)',
+            hasLuoxia: false,
+            type: 'mixed'
+          },
+          pingA: {
+            initialMultiplier: 0,
+            continuousMultiplier: 0,
+            targetMultiplier: 0.31,
+            selfMultiplier: 0.52,
+            lamer1: 28,
+            lamer2: 180,
+            skillBonus: 0.1,
+            guangEffect: 0,
+            description: '分離治療(目標+自身)',
+            hasLuoxia: true,
+            type: 'split'
+          },
+          beidongqun: {
+            initialMultiplier: 0.81,
+            continuousMultiplier: 0,
+            targetMultiplier: 0,
+            selfMultiplier: 0,
+            lamer1: 26,
+            lamer2: 170,
+            skillBonus: 0,
+            guangEffect: 0,
+            description: '被動群體治療',
+            hasLuoxia: false,
+            type: 'burst'
+          },
+        };
+        return skillParams[skillType] || skillParams.chuzhan;
+      };
+
+      // 原有的治疗强度阈值转换计算
+      const calculateThresholdHealing = () => {
         const {
           armor_break, hit, elemental_attack, boss_restraint, faction_restraint, resistance_ignore, healing_power_equip
         } = inputs;
-
-        const toNum = (val) => parseFloat(val) || 0;
 
         const attributeConversion = (
           (toNum(armor_break) * 3 / 1000) +
@@ -598,7 +769,527 @@
         };
       };
 
-      const result = calculateHealing();
+      // 新的治疗量计算
+      const calculateHealing = () => {
+        const {
+          max_attack, min_attack, crit, crit_damage, healing_power, skill_level,
+          gold_i, water_constellation, faction_skills, permanent_skill, skill_type, healing_decrease
+        } = inputs;
+
+        const skillParams = getSkillParams(skill_type);
+
+        // 面板攻击
+        const panelAttack = (toNum(max_attack) + toNum(min_attack)) / 2;
+        const maxAttack = toNum(max_attack);
+        const minAttack = toNum(min_attack);
+
+        // 技能系数计算
+        const skillCoefficient = skillParams.lamer1 * toNum(skill_level) - skillParams.lamer2;
+
+        // 技能治疗效果提升
+        const skillHealingBonus = skillParams.skillBonus;
+
+        // 治疗倍率 = 1 + 水周天級數 + 流派技能數量 + 常駐内功 + 技能治療效果提升
+        let permanentSkillValue = toNum(permanent_skill);
+        if (inputs.permanent_skill === 'custom') {
+          permanentSkillValue = toNum(inputs.custom_permanent_skill) / 100;
+        }
+        const healingMultiplier = 1 + toNum(water_constellation) + toNum(faction_skills) + permanentSkillValue + skillHealingBonus;
+
+        // 会心率计算
+        const c = toNum(crit);
+        const critRateBase = 0.0001942440983381886 * c + 0.15402923129921037;
+        const critRate = Math.min(1, Math.max(0, critRateBase + toNum(gold_i)));
+
+        // 会心伤害计算
+        const critDamageMultiplier = (toNum(crit_damage) / 100 - 1) / 2 + 1;
+
+        // 减疗影响
+        const decreaseMultiplier = (1 - toNum(healing_decrease) / 100);
+
+        // 基础治疗计算函数
+        const calculateBaseHealing = (attack, multiplier) => {
+          return ((attack + toNum(healing_power) + skillCoefficient) * multiplier * healingMultiplier) * decreaseMultiplier;
+        };
+
+        // 根据技能类型计算不同的治疗量
+        let result = {
+          panelAttack: panelAttack.toFixed(0),
+          maxAttack: maxAttack.toFixed(0),
+          minAttack: minAttack.toFixed(0),
+          skillCoefficient: skillCoefficient.toFixed(0),
+          healingMultiplier: healingMultiplier.toFixed(3),
+          skillHealingBonus: (skillHealingBonus * 100).toFixed(0),
+          critRate: (critRate * 100).toFixed(2),
+          critDamageMultiplier: critDamageMultiplier.toFixed(3),
+          critTotalMultiplier: (critRate * critDamageMultiplier + (1 - critRate)).toFixed(3),
+          skillDescription: skillParams.description,
+          hasLuoxia: skillParams.hasLuoxia,
+          skillType: skillParams.type
+        };
+
+        // 根据技能类型计算治疗量
+        if (skillParams.type === 'burst') {
+          // 爆发类：只有初始治疗
+          const panelInitial = calculateBaseHealing(panelAttack, skillParams.initialMultiplier);
+          const maxInitial = calculateBaseHealing(maxAttack, skillParams.initialMultiplier);
+          const minInitial = calculateBaseHealing(minAttack, skillParams.initialMultiplier);
+
+          const critInitialPanel = panelInitial * critDamageMultiplier;
+          const critInitialMax = maxInitial * critDamageMultiplier;
+          const critInitialMin = minInitial * critDamageMultiplier;
+
+          const averageInitial = (1 - critRate) * panelInitial + critRate * critInitialPanel;
+
+          result = {
+            ...result,
+            // 初始治疗
+            panelInitialHealing: panelInitial.toFixed(0),
+            maxInitialHealing: maxInitial.toFixed(0),
+            minInitialHealing: minInitial.toFixed(0),
+            critInitialPanelHealing: critInitialPanel.toFixed(0),
+            critInitialMaxHealing: critInitialMax.toFixed(0),
+            critInitialMinHealing: critInitialMin.toFixed(0),
+            averageInitialHealing: averageInitial.toFixed(0),
+            // 总平均治疗量
+            totalAverageHealing: averageInitial.toFixed(0),
+            // 通用字段 (兼容旧版显示)
+            panelHealing: panelInitial.toFixed(0),
+            maxPanelHealing: maxInitial.toFixed(0),
+            minPanelHealing: minInitial.toFixed(0),
+            critHealing: critInitialPanel.toFixed(0),
+            maxCritHealing: critInitialMax.toFixed(0),
+            minCritHealing: critInitialMin.toFixed(0),
+            averageHealing: averageInitial.toFixed(0),
+            // 霞光效果（初绽自带）
+            guangHealing: skillParams.guangEffect > 0 ? (averageInitial * skillParams.guangEffect).toFixed(0) : '0',
+            luoxiaHealing: skillParams.hasLuoxia ? (averageInitial * 0.18).toFixed(0) : '0'
+          };
+
+        } else if (skillParams.type === 'continuous') {
+          // 持续类：只有持续治疗
+          const panelContinuous = calculateBaseHealing(panelAttack, skillParams.continuousMultiplier);
+          const maxContinuous = calculateBaseHealing(maxAttack, skillParams.continuousMultiplier);
+          const minContinuous = calculateBaseHealing(minAttack, skillParams.continuousMultiplier);
+
+          const critContinuousPanel = panelContinuous * critDamageMultiplier;
+          const critContinuousMax = maxContinuous * critDamageMultiplier;
+          const critContinuousMin = minContinuous * critDamageMultiplier;
+
+          const averageContinuous = (1 - critRate) * panelContinuous + critRate * critContinuousPanel;
+
+          result = {
+            ...result,
+            // 持续治疗
+            panelContinuousHealing: panelContinuous.toFixed(0),
+            maxContinuousHealing: maxContinuous.toFixed(0),
+            minContinuousHealing: minContinuous.toFixed(0),
+            critContinuousPanelHealing: critContinuousPanel.toFixed(0),
+            critContinuousMaxHealing: critContinuousMax.toFixed(0),
+            critContinuousMinHealing: critContinuousMin.toFixed(0),
+            averageContinuousHealing: averageContinuous.toFixed(0),
+            // 总平均治疗量
+            totalAverageHealing: averageContinuous.toFixed(0),
+            // 通用字段 (兼容旧版显示)
+            panelHealing: panelContinuous.toFixed(0),
+            maxPanelHealing: maxContinuous.toFixed(0),
+            minPanelHealing: minContinuous.toFixed(0),
+            critHealing: critContinuousPanel.toFixed(0),
+            maxCritHealing: critContinuousMax.toFixed(0),
+            minCritHealing: critContinuousMin.toFixed(0),
+            averageHealing: averageContinuous.toFixed(0),
+            // 落霞转换
+            guangHealing: '0',
+            luoxiaHealing: skillParams.hasLuoxia ? (averageContinuous * 0.18).toFixed(0) : '0'
+          };
+
+        } else if (skillParams.type === 'mixed') {
+          // 混合类：初始+持续治疗
+          const panelInitial = calculateBaseHealing(panelAttack, skillParams.initialMultiplier);
+          const maxInitial = calculateBaseHealing(maxAttack, skillParams.initialMultiplier);
+          const minInitial = calculateBaseHealing(minAttack, skillParams.initialMultiplier);
+
+          const panelContinuous = calculateBaseHealing(panelAttack, skillParams.continuousMultiplier);
+          const maxContinuous = calculateBaseHealing(maxAttack, skillParams.continuousMultiplier);
+          const minContinuous = calculateBaseHealing(minAttack, skillParams.continuousMultiplier);
+
+          const critInitialPanel = panelInitial * critDamageMultiplier;
+          const critInitialMax = maxInitial * critDamageMultiplier;
+          const critInitialMin = minInitial * critDamageMultiplier;
+
+          const critContinuousPanel = panelContinuous * critDamageMultiplier;
+          const critContinuousMax = maxContinuous * critDamageMultiplier;
+          const critContinuousMin = minContinuous * critDamageMultiplier;
+
+          const averageInitial = (1 - critRate) * panelInitial + critRate * critInitialPanel;
+          const averageContinuous = (1 - critRate) * panelContinuous + critRate * critContinuousPanel;
+          const totalAverage = averageInitial + averageContinuous;
+
+          // 对于混合类，通用字段显示总和
+          const panelTotal = panelInitial + panelContinuous;
+          const maxTotal = maxInitial + maxContinuous;
+          const minTotal = minInitial + minContinuous;
+          const critTotal = critInitialPanel + critContinuousPanel;
+          const critMaxTotal = critInitialMax + critContinuousMax;
+          const critMinTotal = critInitialMin + critContinuousMin;
+
+          result = {
+            ...result,
+            // 初始治疗
+            panelInitialHealing: panelInitial.toFixed(0),
+            maxInitialHealing: maxInitial.toFixed(0),
+            minInitialHealing: minInitial.toFixed(0),
+            critInitialPanelHealing: critInitialPanel.toFixed(0),
+            critInitialMaxHealing: critInitialMax.toFixed(0),
+            critInitialMinHealing: critInitialMin.toFixed(0),
+            averageInitialHealing: averageInitial.toFixed(0),
+            // 持续治疗
+            panelContinuousHealing: panelContinuous.toFixed(0),
+            maxContinuousHealing: maxContinuous.toFixed(0),
+            minContinuousHealing: minContinuous.toFixed(0),
+            critContinuousPanelHealing: critContinuousPanel.toFixed(0),
+            critContinuousMaxHealing: critContinuousMax.toFixed(0),
+            critContinuousMinHealing: critContinuousMin.toFixed(0),
+            averageContinuousHealing: averageContinuous.toFixed(0),
+            // 总平均治疗量
+            totalAverageHealing: totalAverage.toFixed(0),
+            // 通用字段 (显示总和)
+            panelHealing: panelTotal.toFixed(0),
+            maxPanelHealing: maxTotal.toFixed(0),
+            minPanelHealing: minTotal.toFixed(0),
+            critHealing: critTotal.toFixed(0),
+            maxCritHealing: critMaxTotal.toFixed(0),
+            minCritHealing: critMinTotal.toFixed(0),
+            averageHealing: totalAverage.toFixed(0),
+            // 落霞转换
+            guangHealing: '0',
+            luoxiaHealing: skillParams.hasLuoxia ? (totalAverage * 0.18).toFixed(0) : '0'
+          };
+
+        } else if (skillParams.type === 'split') {
+          // 分离类：对目标和自身分别治疗
+          const panelTarget = calculateBaseHealing(panelAttack, skillParams.targetMultiplier);
+          const maxTarget = calculateBaseHealing(maxAttack, skillParams.targetMultiplier);
+          const minTarget = calculateBaseHealing(minAttack, skillParams.targetMultiplier);
+
+          const panelSelf = calculateBaseHealing(panelAttack, skillParams.selfMultiplier);
+          const maxSelf = calculateBaseHealing(maxAttack, skillParams.selfMultiplier);
+          const minSelf = calculateBaseHealing(minAttack, skillParams.selfMultiplier);
+
+          const critTargetPanel = panelTarget * critDamageMultiplier;
+          const critTargetMax = maxTarget * critDamageMultiplier;
+          const critTargetMin = minTarget * critDamageMultiplier;
+
+          const critSelfPanel = panelSelf * critDamageMultiplier;
+          const critSelfMax = maxSelf * critDamageMultiplier;
+          const critSelfMin = minSelf * critDamageMultiplier;
+
+          const averageTarget = (1 - critRate) * panelTarget + critRate * critTargetPanel;
+          const averageSelf = (1 - critRate) * panelSelf + critRate * critSelfPanel;
+          const totalAverage = averageTarget + averageSelf;
+
+          // 对于分离类，通用字段显示总和
+          const panelTotal = panelTarget + panelSelf;
+          const maxTotal = maxTarget + maxSelf;
+          const minTotal = minTarget + minSelf;
+          const critTotal = critTargetPanel + critSelfPanel;
+          const critMaxTotal = critTargetMax + critSelfMax;
+          const critMinTotal = critTargetMin + critSelfMin;
+
+          result = {
+            ...result,
+            // 对目标治疗
+            panelTargetHealing: panelTarget.toFixed(0),
+            maxTargetHealing: maxTarget.toFixed(0),
+            minTargetHealing: minTarget.toFixed(0),
+            critTargetPanelHealing: critTargetPanel.toFixed(0),
+            critTargetMaxHealing: critTargetMax.toFixed(0),
+            critTargetMinHealing: critTargetMin.toFixed(0),
+            averageTargetHealing: averageTarget.toFixed(0),
+            // 对自身治疗
+            panelSelfHealing: panelSelf.toFixed(0),
+            maxSelfHealing: maxSelf.toFixed(0),
+            minSelfHealing: minSelf.toFixed(0),
+            critSelfPanelHealing: critSelfPanel.toFixed(0),
+            critSelfMaxHealing: critSelfMax.toFixed(0),
+            critSelfMinHealing: critSelfMin.toFixed(0),
+            averageSelfHealing: averageSelf.toFixed(0),
+            // 总平均治疗量
+            totalAverageHealing: totalAverage.toFixed(0),
+            // 通用字段 (显示总和)
+            panelHealing: panelTotal.toFixed(0),
+            maxPanelHealing: maxTotal.toFixed(0),
+            minPanelHealing: minTotal.toFixed(0),
+            critHealing: critTotal.toFixed(0),
+            maxCritHealing: critMaxTotal.toFixed(0),
+            minCritHealing: critMinTotal.toFixed(0),
+            averageHealing: totalAverage.toFixed(0),
+            // 落霞转换
+            guangHealing: '0',
+            luoxiaHealing: skillParams.hasLuoxia ? (totalAverage * 0.18).toFixed(0) : '0'
+          };
+        }
+
+        return result;
+      };
+
+      // 计算单个属性投资的治疗提升效果
+      const calculateInvestmentIncrease = (attr, points) => {
+        const params = { ...inputs };
+
+        if (analysisMode === 'from_zero') {
+          if (attr === 'crit_damage') {
+            params[attr] = (100 + points).toString(); // 会心伤害从100%开始
+          } else if (attr === 'max_attack') {
+            params.max_attack = points.toString();
+            params.min_attack = points.toString(); // 同时设置最大最小攻击
+          } else {
+            params[attr] = points.toString();
+          }
+        } else {
+          if (attr === 'crit_damage') {
+            params[attr] = (toNum(inputs[attr]) + points).toString();
+          } else if (attr === 'max_attack') {
+            params.max_attack = (toNum(inputs.max_attack) + points).toString();
+            params.min_attack = (toNum(inputs.min_attack) + points).toString(); // 同时增加最大最小攻击
+          } else {
+            params[attr] = (toNum(inputs[attr]) + points).toString();
+          }
+        }
+
+        const newResult = calculateHealingWithParams(params);
+        const baseResult = calculateHealing();
+        const newHealing = toNum(newResult.totalAverageHealing);
+        const baseHealing = toNum(baseResult.totalAverageHealing);
+
+        return baseHealing ? ((newHealing - baseHealing) / baseHealing) * 100 : 0;
+      };
+
+      // 分析治疗属性投资选项
+      const analyzeHealingOptions = () => {
+        const attributes = [
+          { key: 'max_attack', label: '攻擊' },
+          { key: 'healing_power', label: '治療強度' },
+          { key: 'crit', label: '會心' },
+          { key: 'crit_damage', label: '會心傷害%' },
+        ];
+
+        const newRecommendationData = attributes.map(({ key, label }) => ({
+          attribute: key,
+          label,
+          healingIncrease: key === 'crit_damage'
+            ? calculateInvestmentIncrease(key, investmentPoints[key] || 10)
+            : calculateInvestmentIncrease(key, investmentPoints[key] || 200),
+        })).sort((a, b) => b.healingIncrease - a.healingIncrease);
+
+        setRecommendationData(newRecommendationData);
+      };
+
+      const handleInvestmentChange = (attr, value) => {
+        setInvestmentPoints((prev) => ({
+          ...prev,
+          [attr]: Math.min(1000, Math.max(1, parseInt(value) || 1)),
+        }));
+        analyzeHealingOptions();
+      };
+
+      const toggleVisibility = (key) => {
+        setVisibility((prev) => ({ ...prev, [key]: !prev[key] }));
+      };
+
+      const handleSelectAll = () => {
+        const allSelected = {};
+        Object.keys(visibility).forEach(key => {
+          allSelected[key] = true;
+        });
+        setVisibility(allSelected);
+      };
+
+      const handleDeselectAll = () => {
+        const allSelected = {};
+        Object.keys(visibility).forEach(key => {
+          allSelected[key] = false;
+        });
+        setVisibility(allSelected);
+      };
+
+      // 生成图表数据
+      const generateChartData = () => {
+        const attribute_points = Array.from({ length: 51 }, (_, i) => i * 200);
+        const increases = {
+          max_attack: [], healing_power: [], crit: [], crit_damage: [],
+        };
+        const delta_increases = {
+          max_attack: [], healing_power: [], crit: [], crit_damage: [],
+        };
+
+        const baseHealing = toNum(calculateHealing().totalAverageHealing);
+
+        const calculateIncrease = (attr, value) => {
+          const params = { ...inputs };
+
+          if (analysisMode === 'from_zero') {
+            if (attr === 'crit_damage') {
+              params[attr] = (100 + value / 10).toString(); // 会心伤害按10%递增
+            } else if (attr === 'max_attack') {
+              params.max_attack = value.toString();
+              params.min_attack = value.toString(); // 同时设置最大最小攻击
+            } else {
+              params[attr] = value.toString();
+            }
+          } else {
+            if (attr === 'crit_damage') {
+              params[attr] = (toNum(inputs[attr]) + value / 10).toString();
+            } else if (attr === 'max_attack') {
+              params.max_attack = (toNum(inputs.max_attack) + value).toString();
+              params.min_attack = (toNum(inputs.min_attack) + value).toString(); // 同时增加最大最小攻击
+            } else {
+              params[attr] = (toNum(inputs[attr]) + value).toString();
+            }
+          }
+
+          const newHealing = toNum(calculateHealingWithParams(params).totalAverageHealing);
+          const referenceHealing = analysisMode === 'from_zero' ?
+            toNum(calculateHealingWithParams({
+              ...inputs,
+              healing_power: inputs.healing_power,
+              max_attack: analysisMode === 'from_zero' ? '0' : inputs.max_attack,
+              min_attack: analysisMode === 'from_zero' ? '0' : inputs.min_attack,
+              crit: analysisMode === 'from_zero' ? '0' : inputs.crit,
+              crit_damage: analysisMode === 'from_zero' ? '100' : inputs.crit_damage
+            }).totalAverageHealing) :
+            baseHealing;
+
+          return referenceHealing ? ((newHealing - referenceHealing) / referenceHealing) : 0;
+        };
+
+        attribute_points.forEach((point) => {
+          Object.keys(increases).forEach(attr => {
+            increases[attr].push(calculateIncrease(attr, point));
+          });
+        });
+
+        for (let i = 1; i < increases.max_attack.length; i++) {
+          Object.keys(delta_increases).forEach(attr => {
+            delta_increases[attr].push(Math.max(0, increases[attr][i] - increases[attr][i - 1]));
+          });
+        }
+
+        const deltaData = attribute_points.slice(1).map((point, i) => {
+          const dataPoint = { point };
+          Object.keys(delta_increases).forEach(attr => {
+            dataPoint[attr] = delta_increases[attr][i];
+          });
+          return dataPoint;
+        });
+
+        const increaseData = attribute_points.map((point, i) => {
+          const dataPoint = { point };
+          Object.keys(increases).forEach(attr => {
+            dataPoint[attr] = increases[attr][i];
+          });
+          return dataPoint;
+        });
+
+        return { deltaData, increaseData };
+      };
+
+      // 辅助函数：使用特定参数计算治疗量
+      const calculateHealingWithParams = (params) => {
+        const skillParams = getSkillParams(params.skill_type || inputs.skill_type);
+
+        // 面板攻击 - 使用传入的max_attack和min_attack
+        const panelAttack = (toNum(params.max_attack) + toNum(params.min_attack)) / 2;
+
+        // 技能系数计算
+        const skillCoefficient = skillParams.lamer1 * toNum(params.skill_level) - skillParams.lamer2;
+
+        // 技能治疗效果提升
+        const skillHealingBonus = skillParams.skillBonus;
+
+        // 治疗倍率
+        let permanentSkillValue = toNum(params.permanent_skill);
+        if (params.permanent_skill === 'custom') {
+          permanentSkillValue = toNum(params.custom_permanent_skill) / 100;
+        }
+        const healingMultiplier = 1 + toNum(params.water_constellation) + toNum(params.faction_skills) + permanentSkillValue + skillHealingBonus;
+
+        // 会心率计算
+        const c = toNum(params.crit);
+        const critRateBase = 0.0001942440983381886 * c + 0.15402923129921037;
+        const critRate = Math.min(1, Math.max(0, critRateBase + toNum(params.gold_i)));
+
+        // 会心伤害计算
+        const critDamageMultiplier = (toNum(params.crit_damage) / 100 - 1) / 2 + 1;
+
+        // 减疗影响
+        const decreaseMultiplier = (1 - toNum(params.healing_decrease) / 100);
+
+        // 基础治疗计算函数
+        const calculateBaseHealing = (attack, multiplier) => {
+          return ((attack + toNum(params.healing_power) + skillCoefficient) * multiplier * healingMultiplier) * decreaseMultiplier;
+        };
+
+        // 根据技能类型计算总平均治疗量
+        let totalAverageHealing = 0;
+
+        if (skillParams.type === 'burst') {
+          const panelInitial = calculateBaseHealing(panelAttack, skillParams.initialMultiplier);
+          const critInitialPanel = panelInitial * critDamageMultiplier;
+          const averageInitial = (1 - critRate) * panelInitial + critRate * critInitialPanel;
+          totalAverageHealing = averageInitial;
+
+        } else if (skillParams.type === 'continuous') {
+          const panelContinuous = calculateBaseHealing(panelAttack, skillParams.continuousMultiplier);
+          const critContinuousPanel = panelContinuous * critDamageMultiplier;
+          const averageContinuous = (1 - critRate) * panelContinuous + critRate * critContinuousPanel;
+          totalAverageHealing = averageContinuous;
+
+        } else if (skillParams.type === 'mixed') {
+          const panelInitial = calculateBaseHealing(panelAttack, skillParams.initialMultiplier);
+          const panelContinuous = calculateBaseHealing(panelAttack, skillParams.continuousMultiplier);
+          const critInitialPanel = panelInitial * critDamageMultiplier;
+          const critContinuousPanel = panelContinuous * critDamageMultiplier;
+          const averageInitial = (1 - critRate) * panelInitial + critRate * critInitialPanel;
+          const averageContinuous = (1 - critRate) * panelContinuous + critRate * critContinuousPanel;
+          totalAverageHealing = averageInitial + averageContinuous;
+
+        } else if (skillParams.type === 'split') {
+          const panelTarget = calculateBaseHealing(panelAttack, skillParams.targetMultiplier);
+          const panelSelf = calculateBaseHealing(panelAttack, skillParams.selfMultiplier);
+          const critTargetPanel = panelTarget * critDamageMultiplier;
+          const critSelfPanel = panelSelf * critDamageMultiplier;
+          const averageTarget = (1 - critRate) * panelTarget + critRate * critTargetPanel;
+          const averageSelf = (1 - critRate) * panelSelf + critRate * critSelfPanel;
+          totalAverageHealing = averageTarget + averageSelf;
+        }
+
+        return { totalAverageHealing: totalAverageHealing.toFixed(0) };
+      };
+
+      useEffect(() => {
+        analyzeHealingOptions();
+      }, [inputs, analysisMode, investmentPoints]);
+
+      const thresholdResult = calculateThresholdHealing();
+      const healingResult = calculateHealing();
+      const { deltaData, increaseData } = generateChartData();
+
+      const CustomTooltip = ({ active, payload, label, isDelta }) => {
+        if (active && payload && payload.length) {
+          return (
+            <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-sm">
+              <p className="text-sm text-gray-700 font-medium">屬性點: {label}</p>
+              {payload.map((entry, index) => (
+                <p key={index} className="text-sm text-gray-600">
+                  <span style={{ color: entry.stroke }}>{entry.name}</span>: {(entry.value * 100).toFixed(isDelta ? 4 : 2)}%
+                </p>
+              ))}
+            </div>
+          );
+        }
+        return null;
+      };
 
       return (
         <div className="p-4 container mx-auto min-h-screen">
@@ -609,56 +1300,657 @@
 
           <ImageUploader setInputs={setInputs} type="healing" />
 
+          {/* 新的治疗量计算器 */}
           <div className="bg-white p-4 md:p-6 rounded-xl shadow-md border border-gray-100 mb-6">
-            <div className="flex items-center mb-4">
-              <div className="w-1.5 h-5 rounded-full bg-cherry-500 mr-2"></div>
-              <h2 className="font-bold text-base md:text-lg text-gray-800">治療參數</h2>
+            <div
+              className="flex justify-between items-center cursor-pointer mb-2"
+              onClick={() => setShowHealingCalculator(!showHealingCalculator)}
+            >
+              <div className="flex items-center">
+                <div className="w-1.5 h-5 rounded-full bg-cherry-500 mr-2"></div>
+                <h2 className="font-bold text-base md:text-lg text-gray-800">治療量計算器</h2>
+              </div>
+              <span className="text-cherry-700 text-lg">
+                {showHealingCalculator ? "▲" : "▼"}
+              </span>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {[
-                { key: "armor_break", label: "破防", icon: "🛡️" },
-                { key: "hit", label: "命中", icon: "🎯" },
-                { key: "elemental_attack", label: "元素攻擊", icon: "✨" },
-                { key: "boss_restraint", label: "首領克制", icon: "👑" },
-                { key: "faction_restraint", label: "流派克制", icon: "🔄" },
-                { key: "resistance_ignore", label: "抗性忽視", icon: "🌀" },
-                { key: "healing_power_equip", label: "治療強度（裝備）", icon: "💉" }
-              ].map(({ key, label, icon }) => (
-                <div key={key} className="flex flex-col">
+            <div
+              className={`transition-all duration-500 overflow-hidden ${showHealingCalculator ? "max-h-[2000px] opacity-100" : "max-h-0 opacity-0"}`}
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                {[
+                  { key: "max_attack", label: "最大攻擊", icon: "⚔️" },
+                  { key: "min_attack", label: "最小攻擊", icon: "🗡️" },
+                  { key: "crit", label: "會心", icon: "🎯" },
+                  { key: "crit_damage", label: "會心傷害%", icon: "💥", tooltip: "例如180%，輸入180" },
+                  { key: "healing_power", label: "治療強度", icon: "💉" },
+                  { key: "skill_level", label: "技能等級", icon: "📈" },
+                  { key: "healing_decrease", label: "減療%", icon: "📉", tooltip: "例如25%，輸入25" },
+                ].map(({ key, label, icon, tooltip }) => (
+                  <div key={key} className="flex flex-col group relative">
+                    <label className="text-xs md:text-sm text-gray-600 mb-1 flex items-center">
+                      <span className="mr-1 md:mr-2">{icon}</span>
+                      {label}
+                      {tooltip && (
+                        <>
+                          <span className="ml-1 flex items-center justify-center w-4 h-4 rounded-full bg-gray-400 text-white text-xs cursor-help">
+                            ?
+                          </span>
+                          <div className="absolute left-0 top-8 bg-gray-800 text-white text-xs p-2 rounded-lg shadow-md z-10 max-w-xs opacity-0 group-hover:opacity-100 transition-opacity">
+                            {tooltip}
+                          </div>
+                        </>
+                      )}
+                    </label>
+                    <input
+                      type="number"
+                      name={key}
+                      value={inputs[key]}
+                      onChange={handleChange}
+                      min="0"
+                      max="1000000"
+                      className={`input-focus border ${inputErrors[key] ? 'border-red-500' : 'border-gray-200'} rounded-lg p-2 text-sm w-full`}
+                      aria-label={label}
+                    />
+                    {inputErrors[key] && (
+                      <p className="text-xs text-red-600 mt-1">{inputErrors[key]}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* 下拉选单 */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                <div className="flex flex-col">
                   <label className="text-xs md:text-sm text-gray-600 mb-1 flex items-center">
-                    <span className="mr-1 md:mr-2">{icon}</span>{label}
+                    <span className="mr-1 md:mr-2">🌸</span>技能類型
                   </label>
-                  <input
-                    type="number"
-                    name={key}
-                    value={inputs[key]}
+                  <select
+                    name="skill_type"
+                    value={inputs.skill_type}
                     onChange={handleChange}
-                    min="0"
-                    max="1000000"
-                    className={`input-focus border ${inputErrors[key] ? 'border-red-500' : 'border-gray-200'} rounded-lg p-2 text-sm w-full`}
-                    aria-label={label}
-                  />
-                  {inputErrors[key] && (
-                    <p className="text-xs text-red-600 mt-1">{inputErrors[key]}</p>
+                    className="border border-gray-200 rounded-lg p-2 text-sm w-full focus:ring-2 focus:ring-cherry-500 focus:border-cherry-500 transition-colors"
+                  >
+                    {skillTypeOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex flex-col">
+                  <label className="text-xs md:text-sm text-gray-600 mb-1 flex items-center">
+                    <span className="mr-1 md:mr-2">🌟</span>金周天
+                  </label>
+                  <select
+                    name="gold_i"
+                    value={inputs.gold_i}
+                    onChange={handleChange}
+                    className="border border-gray-200 rounded-lg p-2 text-sm w-full focus:ring-2 focus:ring-cherry-500 focus:border-cherry-500 transition-colors"
+                  >
+                    {goldOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex flex-col">
+                  <label className="text-xs md:text-sm text-gray-600 mb-1 flex items-center">
+                    <span className="mr-1 md:mr-2">💧</span>水周天
+                  </label>
+                  <select
+                    name="water_constellation"
+                    value={inputs.water_constellation}
+                    onChange={handleChange}
+                    className="border border-gray-200 rounded-lg p-2 text-sm w-full focus:ring-2 focus:ring-cherry-500 focus:border-cherry-500 transition-colors"
+                  >
+                    {waterConstellationOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex flex-col">
+                  <label className="text-xs md:text-sm text-gray-600 mb-1 flex items-center">
+                    <span className="mr-1 md:mr-2">🔄</span>流派技能數量
+                  </label>
+                  <select
+                    name="faction_skills"
+                    value={inputs.faction_skills}
+                    onChange={handleChange}
+                    className="border border-gray-200 rounded-lg p-2 text-sm w-full focus:ring-2 focus:ring-cherry-500 focus:border-cherry-500 transition-colors"
+                  >
+                    {factionSkillsOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex flex-col">
+                  <label className="text-xs md:text-sm text-gray-600 mb-1 flex items-center">
+                    <span className="mr-1 md:mr-2">📿</span>常駐内功
+                  </label>
+                  <select
+                    name="permanent_skill"
+                    value={inputs.permanent_skill}
+                    onChange={handleChange}
+                    className="border border-gray-200 rounded-lg p-2 text-sm w-full focus:ring-2 focus:ring-cherry-500 focus:border-cherry-500 transition-colors"
+                  >
+                    {permanentSkillOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                  {inputs.permanent_skill === 'custom' && (
+                    <input
+                      type="number"
+                      name="custom_permanent_skill"
+                      placeholder="請輸入百分比，例如：5"
+                      value={inputs.custom_permanent_skill || ''}
+                      onChange={handleChange}
+                      min="0"
+                      max="100"
+                      className="mt-2 border border-gray-200 rounded-lg p-2 text-sm w-full focus:ring-2 focus:ring-cherry-500 focus:border-cherry-500 transition-colors"
+                    />
                   )}
                 </div>
-              ))}
+              </div>
+
+              {/* 治疗量计算结果 */}
+              <div className="result-card bg-white p-4 md:p-6 rounded-xl shadow-md border border-gray-100">
+                <div className="flex items-center mb-4">
+                  <div className="w-1.5 h-5 rounded-full bg-cherry-500 mr-2"></div>
+                  <h3 className="font-bold text-base md:text-lg text-gray-800">
+                    治療量計算結果 - {healingResult.skillDescription}
+                  </h3>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+                  <div className="bg-cherry-50 p-3 rounded-lg">
+                    <p className="text-xs text-cherry-700">面板攻擊</p>
+                    <p className="text-sm font-bold text-cherry-800">{healingResult.panelAttack}</p>
+                  </div>
+                  <div className="bg-cherry-50 p-3 rounded-lg">
+                    <p className="text-xs text-cherry-700">技能係數</p>
+                    <p className="text-sm font-bold text-cherry-800">{healingResult.skillCoefficient}</p>
+                  </div>
+                  <div className="bg-cherry-50 p-3 rounded-lg">
+                    <p className="text-xs text-cherry-700">技能倍率</p>
+                    <p className="text-sm font-bold text-cherry-800">{healingResult.skillMultiplier}%</p>
+                  </div>
+                  <div className="bg-cherry-50 p-3 rounded-lg">
+                    <p className="text-xs text-cherry-700">治療倍率</p>
+                    <p className="text-sm font-bold text-cherry-800">{healingResult.healingMultiplier}</p>
+                  </div>
+                  <div className="bg-blue-50 p-3 rounded-lg">
+                    <p className="text-xs text-blue-700">會心率</p>
+                    <p className="text-sm font-bold text-blue-800">{healingResult.critRate}%</p>
+                  </div>
+                  <div className="bg-blue-50 p-3 rounded-lg">
+                    <p className="text-xs text-blue-700">會心傷害倍率</p>
+                    <p className="text-sm font-bold text-blue-800">{healingResult.critDamageMultiplier}</p>
+                  </div>
+                  <div className="bg-blue-50 p-3 rounded-lg">
+                    <p className="text-xs text-blue-700">會心總倍率</p>
+                    <p className="text-sm font-bold text-blue-800">{healingResult.critTotalMultiplier}</p>
+                  </div>
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <p className="text-xs text-gray-700">技能治療加成</p>
+                    <p className="text-sm font-bold text-gray-800">{healingResult.skillHealingBonus}%</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-3">
+                    <div className="bg-green-50 p-3 rounded-lg">
+                      <p className="text-xs text-green-700">面板治療量</p>
+                      <p className="text-lg font-bold text-green-800">{healingResult.panelHealing}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-700">不會心最大治療量</p>
+                      <p className="text-sm font-bold text-gray-800">{healingResult.maxPanelHealing}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-700">不會心最小治療量</p>
+                      <p className="text-sm font-bold text-gray-800">{healingResult.minPanelHealing}</p>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="bg-cherry-500 p-3 rounded-lg">
+                      <p className="text-xs text-white">平均治療量</p>
+                      <p className="text-lg font-bold text-white">{healingResult.averageHealing}</p>
+                    </div>
+                    <div className="bg-orange-50 p-3 rounded-lg">
+                      <p className="text-xs text-orange-700">會心最大治療量</p>
+                      <p className="text-sm font-bold text-orange-800">{healingResult.maxCritHealing}</p>
+                    </div>
+                    <div className="bg-orange-50 p-3 rounded-lg">
+                      <p className="text-xs text-orange-700">會心最小治療量</p>
+                      <p className="text-sm font-bold text-orange-800">{healingResult.minCritHealing}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {(healingResult.guangHealing !== '0' || healingResult.luoxiaHealing !== '0') && (
+                  <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {healingResult.guangHealing !== '0' && (
+                      <div className="bg-purple-50 p-3 rounded-lg">
+                        <p className="text-xs text-purple-700">霞光轉換治療量 (技能自帶)</p>
+                        <p className="text-lg font-bold text-purple-800">{healingResult.guangHealing}</p>
+                      </div>
+                    )}
+                    {healingResult.hasLuoxia && (
+                      <div className="bg-indigo-50 p-3 rounded-lg">
+                        <p className="text-xs text-indigo-700">落霞轉換治療量 (18%)</p>
+                        <p className="text-lg font-bold text-indigo-800">{healingResult.luoxiaHealing}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
-          <div className="result-card bg-white p-4 md:p-6 rounded-xl shadow-md border border-gray-100">
-            <div className="flex items-center mb-4">
-              <div className="w-1.5 h-5 rounded-full bg-cherry-500 mr-2"></div>
-              <h2 className="font-bold text-base md:text-lg text-gray-800">計算結果</h2>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="bg-cherry-50 p-3 rounded-lg">
-                <p className="text-xs text-cherry-700">屬性轉換值</p>
-                <p className="text-lg md:text-xl font-bold text-cherry-800">{result.attributeConversion}</p>
+          {/* 治疗属性投资分析 */}
+          <div className="bg-white p-4 md:p-6 rounded-xl shadow-md border border-gray-100 mb-6">
+            <div
+              className="flex justify-between items-center cursor-pointer mb-2"
+              onClick={() => setShowInvestmentAnalysis(!showInvestmentAnalysis)}
+            >
+              <div className="flex items-center">
+                <div className="w-1.5 h-5 rounded-full bg-cherry-500 mr-2"></div>
+                <h2 className="font-bold text-base md:text-lg text-gray-800">治療屬性投資分析</h2>
               </div>
-              <div className="bg-cherry-500 p-3 rounded-lg">
-                <p className="text-xs text-white">總治療強度</p>
-                <p className="text-lg md:text-xl font-bold text-white">{result.healingPower}</p>
+              <span className="text-cherry-700 text-lg">
+                {showInvestmentAnalysis ? "▲" : "▼"}
+              </span>
+            </div>
+            <div
+              className={`transition-all duration-500 overflow-hidden ${showInvestmentAnalysis ? "max-h-[1500px] opacity-100" : "max-h-0 opacity-0"}`}
+            >
+              <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">分析模式：</h3>
+                <div className="flex gap-4">
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="analysisMode"
+                      value="incremental"
+                      checked={analysisMode === 'incremental'}
+                      onChange={(e) => setAnalysisMode(e.target.value)}
+                      className="w-4 h-4 text-cherry-600"
+                    />
+                    <span className="text-sm">增量分析 (從當前屬性繼續投資)</span>
+                  </label>
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="analysisMode"
+                      value="from_zero"
+                      checked={analysisMode === 'from_zero'}
+                      onChange={(e) => setAnalysisMode(e.target.value)}
+                      className="w-4 h-4 text-cherry-600"
+                    />
+                    <span className="text-sm">從零分析 (各屬性從0開始堆疊)</span>
+                  </label>
+                </div>
+              </div>
+
+              {recommendationData.length > 0 && (
+                <div className="space-y-4 mb-6">
+                  {[
+                    { key: "max_attack", label: "攻擊", increment: 200 },
+                    { key: "healing_power", label: "治療強度", increment: 200 },
+                    { key: "crit", label: "會心", increment: 200 },
+                    { key: "crit_damage", label: "會心傷害%", increment: 10 },
+                  ].map(({ key, label, increment }) => {
+                    const increase = key === 'crit_damage'
+                      ? calculateInvestmentIncrease(key, investmentPoints[key])
+                      : calculateInvestmentIncrease(key, investmentPoints[key]);
+                    const maxIncrease = Math.max(
+                      ...Object.keys(investmentPoints).map((attr) =>
+                        attr === 'crit_damage'
+                          ? calculateInvestmentIncrease(attr, investmentPoints[attr])
+                          : calculateInvestmentIncrease(attr, investmentPoints[attr])
+                      ),
+                      0.0001
+                    );
+                    const barWidth = `${(increase / maxIncrease) * 100}%`;
+                    return (
+                      <div key={key} className="flex items-center gap-4">
+                        <span className="w-32 text-sm font-semibold text-gray-700">{label}</span>
+                        <input
+                          type="range"
+                          min={key === 'crit_damage' ? "1" : "1"}
+                          max={key === 'crit_damage' ? "200" : "1000"}
+                          value={investmentPoints[key]}
+                          onChange={(e) => handleInvestmentChange(key, e.target.value)}
+                          className="w-1/3 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                        />
+                        <input
+                          type="number"
+                          min={key === 'crit_damage' ? "1" : "1"}
+                          max={key === 'crit_damage' ? "200" : "1000"}
+                          value={investmentPoints[key]}
+                          onChange={(e) => {
+                            const maxVal = key === 'crit_damage' ? 200 : 1000;
+                            const value = Math.min(maxVal, Math.max(1, parseInt(e.target.value) || 1));
+                            handleInvestmentChange(key, value);
+                          }}
+                          className="w-20 p-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-cherry-500 focus:border-cherry-500 transition-colors"
+                        />
+                        <div className="w-1/3 bg-gray-200 rounded-full h-2.5">
+                          <div
+                            className="bg-cherry-500 h-2.5 rounded-full"
+                            style={{ width: barWidth }}
+                          ></div>
+                        </div>
+                        <span className="text-sm text-gray-700">
+                          {increase.toFixed(2)}% 治療提升
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* 配装建议 */}
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <h2 className="text-xl font-semibold mb-4 text-gray-700 flex items-center">
+                  <div className="w-1.5 h-5 rounded-full bg-cherry-500 mr-2"></div>
+                  治療配裝建議
+                </h2>
+                <div className="space-y-3">
+                  {recommendationData.length > 0 ? (
+                    <>
+                      <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg border-l-4 border-green-500">
+                        <div>
+                          <span className="font-semibold text-green-800">
+                            最優投資: {recommendationData[0]?.label}
+                          </span>
+                          <p className="text-sm text-green-600 mt-1">
+                            投資200點可提升治療 {recommendationData[0]?.healingIncrease.toFixed(3)}%
+                          </p>
+                        </div>
+                      </div>
+                      {recommendationData.length > 1 && (
+                        <div className="flex items-center justify-between p-4 bg-yellow-50 rounded-lg border-l-4 border-yellow-500">
+                          <div>
+                            <span className="font-semibold text-yellow-800">
+                              次優選擇: {recommendationData[1]?.label}
+                            </span>
+                            <p className="text-sm text-yellow-600 mt-1">
+                              投資200點可提升治療 {recommendationData[1]?.healingIncrease.toFixed(3)}%
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                      <div className="p-4 bg-blue-50 rounded-lg border-l-4 border-blue-500">
+                        <span className="font-semibold text-blue-800">配裝策略建議:</span>
+                        <p className="text-sm text-blue-600 mt-1">
+                          使用「{healingResult.skillDescription}」技能時，優先堆疊 {recommendationData[0]?.label}{" "}
+                          {recommendationData[1] ? `和 ${recommendationData[1]?.label}` : ""}，
+                          可以獲得最佳的治療效果。
+                          <br />
+                          請注意不同技能類型的收益優先級可能不同，建議針對主要使用的技能進行優化。
+                        </p>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-sm text-gray-500">正在生成建議，請稍候...</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 收益曲线分析 */}
+          <div className="bg-white p-4 md:p-6 rounded-xl shadow-md border border-gray-100 mb-6">
+            <div
+              className="flex justify-between items-center cursor-pointer mb-2"
+              onClick={() => setShowIncrementalAnalysis(!showIncrementalAnalysis)}
+            >
+              <div className="flex items-center">
+                <div className="w-1.5 h-5 rounded-full bg-cherry-500 mr-2"></div>
+                <h2 className="font-bold text-base md:text-lg text-gray-800">治療屬性收益曲線分析</h2>
+              </div>
+              <span className="text-cherry-700 text-lg">
+                {showIncrementalAnalysis ? "▲" : "▼"}
+              </span>
+            </div>
+            <div
+              className={`transition-all duration-500 overflow-hidden ${showIncrementalAnalysis ? "max-h-[1500px] opacity-100" : "max-h-0 opacity-0"}`}
+            >
+              <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-gray-700">選擇要顯示的曲線：</h3>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleSelectAll}
+                      className="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600"
+                    >
+                      全選
+                    </button>
+                    <button
+                      onClick={handleDeselectAll}
+                      className="px-3 py-1 text-xs bg-gray-500 text-white rounded hover:bg-gray-600"
+                    >
+                      全不選
+                    </button>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-2 gap-3">
+                  {[
+                    { key: 'max_attack', label: '攻擊' },
+                    { key: 'healing_power', label: '治療強度' },
+                    { key: 'crit', label: '會心' },
+                    { key: 'crit_damage', label: '會心傷害%' },
+                  ].map(({ key, label }, index) => (
+                    <label key={key} className="flex items-center space-x-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={visibility[key] || false}
+                        onChange={() => toggleVisibility(key)}
+                        className="w-4 h-4 text-cherry-600 rounded focus:ring-cherry-500"
+                      />
+                      <div className="flex items-center space-x-2">
+                        <div
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: colors[index % colors.length] }}
+                        ></div>
+                        <span className="text-sm text-gray-700">{label}</span>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {increaseData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={400}>
+                  <LineChart data={increaseData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis
+                      dataKey="point"
+                      label={{ value: '投入點數', position: 'insideBottom', offset: -5 }}
+                    />
+                    <YAxis
+                      label={{ value: '治療提升%', angle: -90, position: 'insideLeft' }}
+                      tickFormatter={(value) => (value * 100).toFixed(2)}
+                    />
+                    <Tooltip
+                      formatter={(value, name) => [
+                        `${(value * 100).toFixed(2)}%`,
+                        [
+                          { key: 'max_attack', label: '攻擊' },
+                          { key: 'healing_power', label: '治療強度' },
+                          { key: 'crit', label: '會心' },
+                          { key: 'crit_damage', label: '會心傷害%' },
+                        ].find(item => item.key === name)?.label || name,
+                      ]}
+                      labelFormatter={(points) => `投入點數: ${points}`}
+                    />
+                    <Legend />
+                    {Object.keys(visibility).map((key, index) => visibility[key] && (
+                      <Line
+                        key={key}
+                        type="monotone"
+                        dataKey={key}
+                        stroke={[
+                          '#db2537', '#ff6b6b', '#14b8a6', '#3b82f6'
+                        ][index % 4]}
+                        strokeWidth={2}
+                        dot={false}
+                        name={[
+                          { key: 'max_attack', label: '攻擊' },
+                          { key: 'healing_power', label: '治療強度' },
+                          { key: 'crit', label: '會心' },
+                          { key: 'crit_damage', label: '會心傷害%' },
+                        ].find(item => item.key === key)?.label || key}
+                      />
+                    ))}
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <p className="text-sm text-gray-500">正在生成圖表，請稍候...</p>
+              )}
+
+              {/* 每200点增量收益 */}
+              <div className="mt-8">
+                <h3 className="font-bold text-base text-gray-800 mb-4">每200點屬性治療收益</h3>
+                <div className="flex flex-wrap gap-4 mb-4">
+                  {[
+                    { key: 'max_attack', label: '攻擊', color: '#db2537' },
+                    { key: 'healing_power', label: '治療強度', color: '#ff6b6b' },
+                    { key: 'crit', label: '會心', color: '#14b8a6' },
+                    { key: 'crit_damage', label: '會心傷害%', color: '#3b82f6' },
+                  ].map(({ key, label, color }) => (
+                    <label key={key} className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={visibility[key]}
+                        onChange={() => toggleVisibility(key)}
+                        className="mr-2"
+                      />
+                      <span style={{ color }}>{label}</span>
+                    </label>
+                  ))}
+                </div>
+                <div className="w-full h-[300px]">
+                  {deltaData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={deltaData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                        <XAxis
+                          dataKey="point"
+                          label={{ value: '屬性點', position: 'insideBottom', offset: -5, fontSize: 12, fill: '#6b7280' }}
+                          tick={{ fill: '#6b7280', fontSize: 12 }}
+                        />
+                        <YAxis
+                          label={{ value: '每200點收益 (%)', angle: -90, position: 'insideLeft', fontSize: 12, fill: '#6b7280' }}
+                          tickFormatter={(value) => (value * 100).toFixed(4)}
+                          tick={{ fill: '#6b7280', fontSize: 12 }}
+                        />
+                        <Tooltip content={<CustomTooltip isDelta={true} />} />
+                        <Legend wrapperStyle={{ fontSize: 12 }} />
+                        {Object.keys(visibility).map((key, index) => visibility[key] && (
+                          <Line
+                            key={key}
+                            type="monotone"
+                            dataKey={key}
+                            name={[
+                              { key: 'max_attack', label: '攻擊' },
+                              { key: 'healing_power', label: '治療強度' },
+                              { key: 'crit', label: '會心' },
+                              { key: 'crit_damage', label: '會心傷害%' },
+                            ].find(item => item.key === key)?.label || key}
+                            stroke={[
+                              '#db2537', '#ff6b6b', '#14b8a6', '#3b82f6'
+                            ][index % 4]}
+                            strokeWidth={2}
+                            dot={false}
+                          />
+                        ))}
+                      </LineChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <p className="text-sm text-gray-500">正在生成圖表，請稍候...</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 原有的治疗强度阈值转换计算器 */}
+          <div className="bg-white p-4 md:p-6 rounded-xl shadow-md border border-gray-100 mb-6">
+            <div
+              className="flex justify-between items-center cursor-pointer mb-2"
+              onClick={() => setShowThresholdCalculator(!showThresholdCalculator)}
+            >
+              <div className="flex items-center">
+                <div className="w-1.5 h-5 rounded-full bg-cherry-500 mr-2"></div>
+                <h2 className="font-bold text-base md:text-lg text-gray-800">治療強度閾值轉換計算器</h2>
+              </div>
+              <span className="text-cherry-700 text-lg">
+                {showThresholdCalculator ? "▲" : "▼"}
+              </span>
+            </div>
+            <div
+              className={`transition-all duration-500 overflow-hidden ${showThresholdCalculator ? "max-h-[1500px] opacity-100" : "max-h-0 opacity-0"}`}
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                {[
+                  { key: "armor_break", label: "破防", icon: "🛡️" },
+                  { key: "hit", label: "命中", icon: "🎯" },
+                  { key: "elemental_attack", label: "元素攻擊", icon: "✨" },
+                  { key: "boss_restraint", label: "首領克制", icon: "👑" },
+                  { key: "faction_restraint", label: "流派克制", icon: "🔄" },
+                  { key: "resistance_ignore", label: "抗性忽視", icon: "🌀" },
+                  { key: "healing_power_equip", label: "治療強度（裝備）", icon: "💉" }
+                ].map(({ key, label, icon }) => (
+                  <div key={key} className="flex flex-col">
+                    <label className="text-xs md:text-sm text-gray-600 mb-1 flex items-center">
+                      <span className="mr-1 md:mr-2">{icon}</span>{label}
+                    </label>
+                    <input
+                      type="number"
+                      name={key}
+                      value={inputs[key]}
+                      onChange={handleChange}
+                      min="0"
+                      max="1000000"
+                      className={`input-focus border ${inputErrors[key] ? 'border-red-500' : 'border-gray-200'} rounded-lg p-2 text-sm w-full`}
+                      aria-label={label}
+                    />
+                    {inputErrors[key] && (
+                      <p className="text-xs text-red-600 mt-1">{inputErrors[key]}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <div className="result-card bg-white p-4 md:p-6 rounded-xl shadow-md border border-gray-100">
+                <div className="flex items-center mb-4">
+                  <div className="w-1.5 h-5 rounded-full bg-cherry-500 mr-2"></div>
+                  <h3 className="font-bold text-base md:text-lg text-gray-800">閾值轉換結果</h3>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="bg-cherry-50 p-3 rounded-lg">
+                    <p className="text-xs text-cherry-700">屬性轉換值</p>
+                    <p className="text-lg md:text-xl font-bold text-cherry-800">{thresholdResult.attributeConversion}</p>
+                  </div>
+                  <div className="bg-cherry-500 p-3 rounded-lg">
+                    <p className="text-xs text-white">總治療強度</p>
+                    <p className="text-lg md:text-xl font-bold text-white">{thresholdResult.healingPower}</p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -816,7 +2108,7 @@
         const r_b = (143 * safeNum(b_b)) / (safeNum(b_b) + 713);
         const p_h_percent = 95 + (r_h - r_b);
         const p_h = Math.min(1, Math.max(0.25, p_h_percent / 100));
-        const m_c = 1 + p_c *Math.max(0,(safeNum(d_c) - 1 - safeNum(d_c_defense)));
+        const m_c = 1 + p_c * Math.max(0, (safeNum(d_c) - 1 - safeNum(d_c_defense)));
         const d_mul = m_c * p_h + 0.5 * (1 - p_h);
         const G = safeNum(b_s) >= safeNum(d_s)
           ? 0
@@ -2537,7 +3829,7 @@
         } = inputs;
 
         const c = toNum(b_c) - toNum(b_c_defense);
-        const p_c = Math.min(1,Math.max(0, (115 * c + 90) / (c + 940) / 100 + toNum(gold_i)));
+        const p_c = Math.min(1, Math.max(0, (115 * c + 90) / (c + 940) / 100 + toNum(gold_i)));
         const r_h = 143 * toNum(h) / (toNum(h) + 713);
         const r_b = 143 * toNum(b_b) / (toNum(b_b) + 713);
         const p_h_percent = 95 + (r_h - r_b);
@@ -2566,7 +3858,7 @@
         const beta_2 = beta > 0 ? 1 - beta : 1;
 
         const c_original = toNum(b_c);
-        const p_c_original = Math.min(1,Math.max(0, (115 * c_original + 90) / (c_original + 940) / 100 + toNum(gold_i)));
+        const p_c_original = Math.min(1, Math.max(0, (115 * c_original + 90) / (c_original + 940) / 100 + toNum(gold_i)));
         const r_h_original = 0;
         const r_b_original = 143 * toNum(b_b) / (toNum(b_b) + 713);
         const p_h_original_percent = 95 + (r_h_original - r_b_original);
