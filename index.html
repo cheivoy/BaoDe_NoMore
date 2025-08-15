@@ -548,10 +548,8 @@
     };
 
     //治療計算機-更新
-    // HealingCalculator Component - 完善版
     const HealingCalculator = () => {
       const [inputs, setInputs] = useState({
-        // 原有的治疗强度阈值转换字段
         armor_break: "0",
         hit: "0",
         elemental_attack: "0",
@@ -559,20 +557,20 @@
         faction_restraint: "0",
         resistance_ignore: "0",
         healing_power_equip: "0",
-        // 新增的治疗量计算字段
-        max_attack: "5000",
-        min_attack: "4500",
-        crit: "900",
-        crit_damage: "180",
-        healing_power: "2000",
-        skill_level: "10",
+        max_attack: "6525",
+        min_attack: "5539",
+        crit: "1460",
+        crit_damage: "190.2",
+        healing_power: "5141",
+        skill_level: "21",
         gold_i: "0",
-        water_constellation: "0",
-        faction_skills: "0",
-        permanent_skill: "0",
+        water_constellation: "0.06",
+        faction_skills: "0.30",
+        permanent_skill: "0.05",
         skill_type: "chuzhan",
         custom_permanent_skill: "0",
-        healing_decrease: "0"
+        healing_decrease: "0",
+        skill_increase: "0"
       });
 
       const [inputErrors, setInputErrors] = useState({});
@@ -591,7 +589,7 @@
         max_attack: 200,
         healing_power: 200,
         crit: 200,
-        crit_damage: 10, // 10%增量
+        crit_damage: 10,
       });
       const [recommendationData, setRecommendationData] = useState([]);
 
@@ -624,14 +622,30 @@
         { value: 'custom', label: '其他（可輸入）' },
       ];
 
-      const skillTypeOptions = [
-        { value: 'chuzhan', label: '初綻(化境) - 366%治療倍率+霞光18%' },
-        { value: 'fufeng', label: '扶風(化境) - 79%治療倍率/秒' },
-        { value: 'qingfeng', label: '清風垂露(化境) - 75%初始+31%/3秒持續' },
-        { value: 'caiyi', label: '彩翼(化境) - 100%初始+25%/秒持續' },
-        { value: 'pingA', label: '點絳(化境) - 31%對目標+52%對自身' },
-        { value: 'beidongqun', label: '蝶戀花·夢染 - 81%群體治療' },
+      const skillIncreaseOptions = [
+        { value: '0', label: '無技能增强' },
+        { value: 'singleskillincrease', label: '單體技能增强' },
+        { value: 'AOEskillincrease', label: '群體技能增强' },
+        { value: 'baofaskillincrease', label: '爆發技能增强' },
+        { value: 'continuousskillincrease', label: '持續技能增强' },
       ];
+
+      const skillTypeOptions = [
+        { value: 'chuzhan', label: '初綻(化境) - 爆發治療', tag: '爆發' },
+        { value: 'fufeng', label: '扶風(化境) - 每秒群體治療-5秒', tag: '群體' },
+        { value: 'qingfeng', label: '清風垂露(化境) - 初始群體治療+持續每3秒治療-10分鐘', tag: '持續' },
+        { value: 'caiyi', label: '彩翼(化境) - 初始群體治療+持續每秒治療-7秒', tag: '群體' },
+        { value: 'pingA', label: '點絳(化境) - 平A', tag: '單體' },
+        { value: 'beidongqun', label: '蝶戀花·夢染 - 被動群體治療', tag: '群體' },
+      ];
+
+      // 技能類型與增強選項的映射
+      const skillTagToIncreaseMap = {
+        '單體': 'singleskillincrease',
+        '群體': 'AOEskillincrease',
+        '爆發': 'baofaskillincrease',
+        '持續': 'continuousskillincrease',
+      };
 
       const colors = [
         '#3b82f6', '#10b981', '#8b5cf6', '#14b8a6', '#f97316', '#d084d0'
@@ -667,54 +681,61 @@
             targetMultiplier: 0,
             selfMultiplier: 0,
             lamer1: 81.5,
-            lamer2: 303,
-            skillBonus: 0.1,
-            guangEffect: 0, // 移除自带霞光转换
-            description: '爆發治療',
+            lamer2: 305,
+            skillBonus: 0,
+            guangEffect: 0.18, // 霞光转换
+            description: '初綻(化境)',
             hasLuoxia: true,
-            type: 'burst'
+            type: 'burst',
+            displayName: '爆發治療(366%)'
           },
           fufeng: {
             initialMultiplier: 0,
             continuousMultiplier: 0.79,
-            continuousInterval: 1, // 每秒
+            continuousInterval: 1,
             targetMultiplier: 0,
             selfMultiplier: 0,
             lamer1: 25,
-            lamer2: 165,
+            lamer2: 1131,
             skillBonus: 0.1,
             guangEffect: 0,
-            description: '持續治療(每秒)',
+            description: '扶風(化境)',
             hasLuoxia: true,
-            type: 'continuous'
+            type: 'continuous',
+            displayName: '持續治療(79%/秒)'
           },
           qingfeng: {
             initialMultiplier: 0.75,
-            continuousMultiplier: 0.31, // 每3秒触发一次，显示时需要注明
-            continuousInterval: 3, // 3秒间隔
+            continuousMultiplier: 0.31,
+            continuousInterval: 3,
             targetMultiplier: 0,
             selfMultiplier: 0,
             lamer1: 35,
-            lamer2: 220,
+            lamer2: 185,
+            continuouslamer2: 85,
             skillBonus: 0.1,
             guangEffect: 0,
-            description: '初始群體治療+持續治療',
+            description: '清風垂露(化境)',
             hasLuoxia: true,
-            type: 'mixed'
+            type: 'mixed',
+            initialDisplayName: '初始群體治療(75%)',
+            continuousDisplayName: '持續治療(31%/3秒)'
           },
           caiyi: {
             initialMultiplier: 1.0,
             continuousMultiplier: 0.25,
-            continuousInterval: 1, // 每秒
+            continuousInterval: 1,
             targetMultiplier: 0,
             selfMultiplier: 0,
             lamer1: 40,
-            lamer2: 240,
+            lamer2: 1411,
             skillBonus: 0.1,
             guangEffect: 0,
-            description: '初始治療+持續治療(每秒)',
-            hasLuoxia: false,
-            type: 'mixed'
+            description: '彩翼(化境)',
+            hasLuoxia: false, // 彩翼沒有落霞效果
+            type: 'mixed',
+            initialDisplayName: '初始治療(100%)',
+            continuousDisplayName: '持續治療(25%/秒)'
           },
           pingA: {
             initialMultiplier: 0,
@@ -725,9 +746,11 @@
             lamer2: 180,
             skillBonus: 0.1,
             guangEffect: 0,
-            description: '分離治療(目標+自身)',
+            description: '點絳(化境)',
             hasLuoxia: true,
-            type: 'split'
+            type: 'split',
+            targetDisplayName: '對目標治療(31%)',
+            selfDisplayName: '對自身治療(52%)'
           },
           beidongqun: {
             initialMultiplier: 0.81,
@@ -738,9 +761,10 @@
             lamer2: 170,
             skillBonus: 0,
             guangEffect: 0,
-            description: '被動群體治療',
-            hasLuoxia: false,
-            type: 'burst'
+            description: '蝶戀花·夢染',
+            hasLuoxia: false, // 蝶戀花沒有落霞效果
+            type: 'burst',
+            displayName: '被動群體治療(81%)'
           },
         };
         return skillParams[skillType] || skillParams.chuzhan;
@@ -773,7 +797,7 @@
       const calculateHealing = () => {
         const {
           max_attack, min_attack, crit, crit_damage, healing_power, skill_level,
-          gold_i, water_constellation, faction_skills, permanent_skill, skill_type, healing_decrease
+          gold_i, water_constellation, faction_skills, permanent_skill, skill_type, healing_decrease, skill_increase
         } = inputs;
 
         const skillParams = getSkillParams(skill_type);
@@ -789,7 +813,17 @@
         // 技能治疗效果提升
         const skillHealingBonus = skillParams.skillBonus;
 
-        // 治疗倍率 = 1 + 水周天級數 + 流派技能數量 + 常駐内功 + 技能治療效果提升
+        let skillIncreaseValue = 0; // 默認值
+        // 查找當前技能的標籤
+        const selectedSkill = skillTypeOptions.find(skill => skill.value === inputs.skill_type);
+        if (selectedSkill && inputs.skill_increase !== '0') {
+          // 檢查增強選項是否與技能標籤匹配
+          if (skillTagToIncreaseMap[selectedSkill.tag] === inputs.skill_increase) {
+            skillIncreaseValue = toNum(inputs.skill_increase_value);
+          }
+        }
+
+        // 治疗倍率
         let permanentSkillValue = toNum(permanent_skill);
         if (inputs.permanent_skill === 'custom') {
           permanentSkillValue = toNum(inputs.custom_permanent_skill) / 100;
@@ -809,10 +843,33 @@
 
         // 基础治疗计算函数
         const calculateBaseHealing = (attack, multiplier) => {
-          return ((attack + toNum(healing_power) + skillCoefficient) * multiplier * healingMultiplier) * decreaseMultiplier;
+          return ((attack + toNum(healing_power) + skillCoefficient + skillIncreaseValue) * multiplier * healingMultiplier) * decreaseMultiplier;
         };
 
-        // 根据技能类型计算不同的治疗量
+        // 计算单个部分的治疗数据
+        const calculateHealingPart = (attack, multiplier, displayName) => {
+          const panelHealing = calculateBaseHealing((toNum(max_attack) + toNum(min_attack)) / 2, multiplier);
+          const maxHealing = calculateBaseHealing(toNum(max_attack), multiplier);
+          const minHealing = calculateBaseHealing(toNum(min_attack), multiplier);
+          const critPanelHealing = panelHealing * critDamageMultiplier;
+          const critMaxHealing = maxHealing * critDamageMultiplier;
+          const critMinHealing = minHealing * critDamageMultiplier;
+          const averageHealing = (1 - critRate) * panelHealing + critRate * critPanelHealing;
+
+          return {
+            displayName,
+            multiplierPercent: (multiplier * 100).toFixed(0) + '%',
+            panelHealing: panelHealing.toFixed(0),
+            maxHealing: maxHealing.toFixed(0),
+            minHealing: minHealing.toFixed(0),
+            critPanelHealing: critPanelHealing.toFixed(0),
+            critMaxHealing: critMaxHealing.toFixed(0),
+            critMinHealing: critMinHealing.toFixed(0),
+            averageHealing: averageHealing.toFixed(0),
+            luoxiaHealing: skillParams.hasLuoxia ? (averageHealing * 0.18).toFixed(0) : null
+          };
+        };
+
         let result = {
           panelAttack: panelAttack.toFixed(0),
           maxAttack: maxAttack.toFixed(0),
@@ -825,224 +882,62 @@
           critTotalMultiplier: (critRate * critDamageMultiplier + (1 - critRate)).toFixed(3),
           skillDescription: skillParams.description,
           hasLuoxia: skillParams.hasLuoxia,
-          skillType: skillParams.type
+          skillType: skillParams.type,
+          guangEffect: skillParams.guangEffect,
+          healingParts: []
         };
 
-        // 根据技能类型计算治疗量
+        // 根据技能类型计算治疗部分
         if (skillParams.type === 'burst') {
-          // 爆发类：只有初始治疗
-          const panelInitial = calculateBaseHealing(panelAttack, skillParams.initialMultiplier);
-          const maxInitial = calculateBaseHealing(maxAttack, skillParams.initialMultiplier);
-          const minInitial = calculateBaseHealing(minAttack, skillParams.initialMultiplier);
+          result.healingParts.push(
+            calculateHealingPart(panelAttack, skillParams.initialMultiplier, skillParams.displayName)
+          );
 
-          const critInitialPanel = panelInitial * critDamageMultiplier;
-          const critInitialMax = maxInitial * critDamageMultiplier;
-          const critInitialMin = minInitial * critDamageMultiplier;
-
-          const averageInitial = (1 - critRate) * panelInitial + critRate * critInitialPanel;
-
-          result = {
-            ...result,
-            // 初始治疗
-            panelInitialHealing: panelInitial.toFixed(0),
-            maxInitialHealing: maxInitial.toFixed(0),
-            minInitialHealing: minInitial.toFixed(0),
-            critInitialPanelHealing: critInitialPanel.toFixed(0),
-            critInitialMaxHealing: critInitialMax.toFixed(0),
-            critInitialMinHealing: critInitialMin.toFixed(0),
-            averageInitialHealing: averageInitial.toFixed(0),
-            // 总平均治疗量
-            totalAverageHealing: averageInitial.toFixed(0),
-            // 通用字段 (兼容旧版显示)
-            panelHealing: panelInitial.toFixed(0),
-            maxPanelHealing: maxInitial.toFixed(0),
-            minPanelHealing: minInitial.toFixed(0),
-            critHealing: critInitialPanel.toFixed(0),
-            maxCritHealing: critInitialMax.toFixed(0),
-            minCritHealing: critInitialMin.toFixed(0),
-            averageHealing: averageInitial.toFixed(0),
-            // 霞光效果（初绽自带）
-            guangHealing: skillParams.guangEffect > 0 ? (averageInitial * skillParams.guangEffect).toFixed(0) : '0',
-            luoxiaHealing: skillParams.hasLuoxia ? (averageInitial * 0.18).toFixed(0) : '0'
-          };
+          // 霞光效果（初绽特有）
+          if (skillParams.guangEffect > 0) {
+            const totalAverage = parseFloat(result.healingParts[0].averageHealing);
+            result.guangHealing = (totalAverage * skillParams.guangEffect).toFixed(0);
+          }
 
         } else if (skillParams.type === 'continuous') {
-          // 持续类：只有持续治疗
-          const panelContinuous = calculateBaseHealing(panelAttack, skillParams.continuousMultiplier);
-          const maxContinuous = calculateBaseHealing(maxAttack, skillParams.continuousMultiplier);
-          const minContinuous = calculateBaseHealing(minAttack, skillParams.continuousMultiplier);
-
-          const critContinuousPanel = panelContinuous * critDamageMultiplier;
-          const critContinuousMax = maxContinuous * critDamageMultiplier;
-          const critContinuousMin = minContinuous * critDamageMultiplier;
-
-          const averageContinuous = (1 - critRate) * panelContinuous + critRate * critContinuousPanel;
-
-          result = {
-            ...result,
-            // 持续治疗
-            panelContinuousHealing: panelContinuous.toFixed(0),
-            maxContinuousHealing: maxContinuous.toFixed(0),
-            minContinuousHealing: minContinuous.toFixed(0),
-            critContinuousPanelHealing: critContinuousPanel.toFixed(0),
-            critContinuousMaxHealing: critContinuousMax.toFixed(0),
-            critContinuousMinHealing: critContinuousMin.toFixed(0),
-            averageContinuousHealing: averageContinuous.toFixed(0),
-            // 总平均治疗量
-            totalAverageHealing: averageContinuous.toFixed(0),
-            // 通用字段 (兼容旧版显示)
-            panelHealing: panelContinuous.toFixed(0),
-            maxPanelHealing: maxContinuous.toFixed(0),
-            minPanelHealing: minContinuous.toFixed(0),
-            critHealing: critContinuousPanel.toFixed(0),
-            maxCritHealing: critContinuousMax.toFixed(0),
-            minCritHealing: critContinuousMin.toFixed(0),
-            averageHealing: averageContinuous.toFixed(0),
-            // 落霞转换
-            guangHealing: '0',
-            luoxiaHealing: skillParams.hasLuoxia ? (averageContinuous * 0.18).toFixed(0) : '0'
-          };
+          result.healingParts.push(
+            calculateHealingPart(panelAttack, skillParams.continuousMultiplier, skillParams.displayName)
+          );
 
         } else if (skillParams.type === 'mixed') {
-          // 混合类：初始+持续治疗
-          const panelInitial = calculateBaseHealing(panelAttack, skillParams.initialMultiplier);
-          const maxInitial = calculateBaseHealing(maxAttack, skillParams.initialMultiplier);
-          const minInitial = calculateBaseHealing(minAttack, skillParams.initialMultiplier);
-
-          const panelContinuous = calculateBaseHealing(panelAttack, skillParams.continuousMultiplier);
-          const maxContinuous = calculateBaseHealing(maxAttack, skillParams.continuousMultiplier);
-          const minContinuous = calculateBaseHealing(minAttack, skillParams.continuousMultiplier);
-
-          const critInitialPanel = panelInitial * critDamageMultiplier;
-          const critInitialMax = maxInitial * critDamageMultiplier;
-          const critInitialMin = minInitial * critDamageMultiplier;
-
-          const critContinuousPanel = panelContinuous * critDamageMultiplier;
-          const critContinuousMax = maxContinuous * critDamageMultiplier;
-          const critContinuousMin = minContinuous * critDamageMultiplier;
-
-          const averageInitial = (1 - critRate) * panelInitial + critRate * critInitialPanel;
-          const averageContinuous = (1 - critRate) * panelContinuous + critRate * critContinuousPanel;
-          const totalAverage = averageInitial + averageContinuous;
-
-          // 对于混合类，通用字段显示总和
-          const panelTotal = panelInitial + panelContinuous;
-          const maxTotal = maxInitial + maxContinuous;
-          const minTotal = minInitial + minContinuous;
-          const critTotal = critInitialPanel + critContinuousPanel;
-          const critMaxTotal = critInitialMax + critContinuousMax;
-          const critMinTotal = critInitialMin + critContinuousMin;
-
-          result = {
-            ...result,
-            // 初始治疗
-            panelInitialHealing: panelInitial.toFixed(0),
-            maxInitialHealing: maxInitial.toFixed(0),
-            minInitialHealing: minInitial.toFixed(0),
-            critInitialPanelHealing: critInitialPanel.toFixed(0),
-            critInitialMaxHealing: critInitialMax.toFixed(0),
-            critInitialMinHealing: critInitialMin.toFixed(0),
-            averageInitialHealing: averageInitial.toFixed(0),
-            // 持续治疗
-            panelContinuousHealing: panelContinuous.toFixed(0),
-            maxContinuousHealing: maxContinuous.toFixed(0),
-            minContinuousHealing: minContinuous.toFixed(0),
-            critContinuousPanelHealing: critContinuousPanel.toFixed(0),
-            critContinuousMaxHealing: critContinuousMax.toFixed(0),
-            critContinuousMinHealing: critContinuousMin.toFixed(0),
-            averageContinuousHealing: averageContinuous.toFixed(0),
-            // 总平均治疗量
-            totalAverageHealing: totalAverage.toFixed(0),
-            // 通用字段 (显示总和)
-            panelHealing: panelTotal.toFixed(0),
-            maxPanelHealing: maxTotal.toFixed(0),
-            minPanelHealing: minTotal.toFixed(0),
-            critHealing: critTotal.toFixed(0),
-            maxCritHealing: critMaxTotal.toFixed(0),
-            minCritHealing: critMinTotal.toFixed(0),
-            averageHealing: totalAverage.toFixed(0),
-            // 落霞转换
-            guangHealing: '0',
-            luoxiaHealing: skillParams.hasLuoxia ? (totalAverage * 0.18).toFixed(0) : '0'
-          };
+          result.healingParts.push(
+            calculateHealingPart(panelAttack, skillParams.initialMultiplier, skillParams.initialDisplayName)
+          );
+          result.healingParts.push(
+            calculateHealingPart(panelAttack, skillParams.continuousMultiplier, skillParams.continuousDisplayName)
+          );
 
         } else if (skillParams.type === 'split') {
-          // 分离类：对目标和自身分别治疗
-          const panelTarget = calculateBaseHealing(panelAttack, skillParams.targetMultiplier);
-          const maxTarget = calculateBaseHealing(maxAttack, skillParams.targetMultiplier);
-          const minTarget = calculateBaseHealing(minAttack, skillParams.targetMultiplier);
-
-          const panelSelf = calculateBaseHealing(panelAttack, skillParams.selfMultiplier);
-          const maxSelf = calculateBaseHealing(maxAttack, skillParams.selfMultiplier);
-          const minSelf = calculateBaseHealing(minAttack, skillParams.selfMultiplier);
-
-          const critTargetPanel = panelTarget * critDamageMultiplier;
-          const critTargetMax = maxTarget * critDamageMultiplier;
-          const critTargetMin = minTarget * critDamageMultiplier;
-
-          const critSelfPanel = panelSelf * critDamageMultiplier;
-          const critSelfMax = maxSelf * critDamageMultiplier;
-          const critSelfMin = minSelf * critDamageMultiplier;
-
-          const averageTarget = (1 - critRate) * panelTarget + critRate * critTargetPanel;
-          const averageSelf = (1 - critRate) * panelSelf + critRate * critSelfPanel;
-          const totalAverage = averageTarget + averageSelf;
-
-          // 对于分离类，通用字段显示总和
-          const panelTotal = panelTarget + panelSelf;
-          const maxTotal = maxTarget + maxSelf;
-          const minTotal = minTarget + minSelf;
-          const critTotal = critTargetPanel + critSelfPanel;
-          const critMaxTotal = critTargetMax + critSelfMax;
-          const critMinTotal = critTargetMin + critSelfMin;
-
-          result = {
-            ...result,
-            // 对目标治疗
-            panelTargetHealing: panelTarget.toFixed(0),
-            maxTargetHealing: maxTarget.toFixed(0),
-            minTargetHealing: minTarget.toFixed(0),
-            critTargetPanelHealing: critTargetPanel.toFixed(0),
-            critTargetMaxHealing: critTargetMax.toFixed(0),
-            critTargetMinHealing: critTargetMin.toFixed(0),
-            averageTargetHealing: averageTarget.toFixed(0),
-            // 对自身治疗
-            panelSelfHealing: panelSelf.toFixed(0),
-            maxSelfHealing: maxSelf.toFixed(0),
-            minSelfHealing: minSelf.toFixed(0),
-            critSelfPanelHealing: critSelfPanel.toFixed(0),
-            critSelfMaxHealing: critSelfMax.toFixed(0),
-            critSelfMinHealing: critSelfMin.toFixed(0),
-            averageSelfHealing: averageSelf.toFixed(0),
-            // 总平均治疗量
-            totalAverageHealing: totalAverage.toFixed(0),
-            // 通用字段 (显示总和)
-            panelHealing: panelTotal.toFixed(0),
-            maxPanelHealing: maxTotal.toFixed(0),
-            minPanelHealing: minTotal.toFixed(0),
-            critHealing: critTotal.toFixed(0),
-            maxCritHealing: critMaxTotal.toFixed(0),
-            minCritHealing: critMinTotal.toFixed(0),
-            averageHealing: totalAverage.toFixed(0),
-            // 落霞转换
-            guangHealing: '0',
-            luoxiaHealing: skillParams.hasLuoxia ? (totalAverage * 0.18).toFixed(0) : '0'
-          };
+          result.healingParts.push(
+            calculateHealingPart(panelAttack, skillParams.targetMultiplier, skillParams.targetDisplayName)
+          );
+          result.healingParts.push(
+            calculateHealingPart(panelAttack, skillParams.selfMultiplier, skillParams.selfDisplayName)
+          );
         }
+
+        // 计算总平均治疗量
+        const totalAverageHealing = result.healingParts.reduce((sum, part) => sum + parseFloat(part.averageHealing), 0);
+        result.totalAverageHealing = totalAverageHealing.toFixed(0);
 
         return result;
       };
 
-      // 计算单个属性投资的治疗提升效果
+      // 其他函数保持不变
       const calculateInvestmentIncrease = (attr, points) => {
         const params = { ...inputs };
 
         if (analysisMode === 'from_zero') {
           if (attr === 'crit_damage') {
-            params[attr] = (100 + points).toString(); // 会心伤害从100%开始
+            params[attr] = (100 + points).toString();
           } else if (attr === 'max_attack') {
             params.max_attack = points.toString();
-            params.min_attack = points.toString(); // 同时设置最大最小攻击
+            params.min_attack = points.toString();
           } else {
             params[attr] = points.toString();
           }
@@ -1051,7 +946,7 @@
             params[attr] = (toNum(inputs[attr]) + points).toString();
           } else if (attr === 'max_attack') {
             params.max_attack = (toNum(inputs.max_attack) + points).toString();
-            params.min_attack = (toNum(inputs.min_attack) + points).toString(); // 同时增加最大最小攻击
+            params.min_attack = (toNum(inputs.min_attack) + points).toString();
           } else {
             params[attr] = (toNum(inputs[attr]) + points).toString();
           }
@@ -1065,7 +960,6 @@
         return baseHealing ? ((newHealing - baseHealing) / baseHealing) * 100 : 0;
       };
 
-      // 分析治疗属性投资选项
       const analyzeHealingOptions = () => {
         const attributes = [
           { key: 'max_attack', label: '攻擊' },
@@ -1113,7 +1007,6 @@
         setVisibility(allSelected);
       };
 
-      // 生成图表数据
       const generateChartData = () => {
         const attribute_points = Array.from({ length: 51 }, (_, i) => i * 200);
         const increases = {
@@ -1130,10 +1023,10 @@
 
           if (analysisMode === 'from_zero') {
             if (attr === 'crit_damage') {
-              params[attr] = (100 + value / 10).toString(); // 会心伤害按10%递增
+              params[attr] = (100 + value / 10).toString();
             } else if (attr === 'max_attack') {
               params.max_attack = value.toString();
-              params.min_attack = value.toString(); // 同时设置最大最小攻击
+              params.min_attack = value.toString();
             } else {
               params[attr] = value.toString();
             }
@@ -1142,7 +1035,7 @@
               params[attr] = (toNum(inputs[attr]) + value / 10).toString();
             } else if (attr === 'max_attack') {
               params.max_attack = (toNum(inputs.max_attack) + value).toString();
-              params.min_attack = (toNum(inputs.min_attack) + value).toString(); // 同时增加最大最小攻击
+              params.min_attack = (toNum(inputs.min_attack) + value).toString();
             } else {
               params[attr] = (toNum(inputs[attr]) + value).toString();
             }
@@ -1194,43 +1087,38 @@
         return { deltaData, increaseData };
       };
 
-      // 辅助函数：使用特定参数计算治疗量
       const calculateHealingWithParams = (params) => {
         const skillParams = getSkillParams(params.skill_type || inputs.skill_type);
-
-        // 面板攻击 - 使用传入的max_attack和min_attack
         const panelAttack = (toNum(params.max_attack) + toNum(params.min_attack)) / 2;
-
-        // 技能系数计算
         const skillCoefficient = skillParams.lamer1 * toNum(params.skill_level) - skillParams.lamer2;
-
-        // 技能治疗效果提升
         const skillHealingBonus = skillParams.skillBonus;
 
-        // 治疗倍率
+        let skillIncreaseValue = 0; // 默認值
+        // 查找當前技能的標籤
+        const selectedSkill = skillTypeOptions.find(skill => skill.value === inputs.skill_type);
+        if (selectedSkill && inputs.skill_increase !== '0') {
+          // 檢查增強選項是否與技能標籤匹配
+          if (skillTagToIncreaseMap[selectedSkill.tag] === inputs.skill_increase) {
+            skillIncreaseValue = toNum(inputs.skill_increase_value);
+          }
+        }
+
         let permanentSkillValue = toNum(params.permanent_skill);
         if (params.permanent_skill === 'custom') {
           permanentSkillValue = toNum(params.custom_permanent_skill) / 100;
         }
         const healingMultiplier = 1 + toNum(params.water_constellation) + toNum(params.faction_skills) + permanentSkillValue + skillHealingBonus;
 
-        // 会心率计算
         const c = toNum(params.crit);
         const critRateBase = 0.0001942440983381886 * c + 0.15402923129921037;
         const critRate = Math.min(1, Math.max(0, critRateBase + toNum(params.gold_i)));
-
-        // 会心伤害计算
         const critDamageMultiplier = (toNum(params.crit_damage) / 100 - 1) / 2 + 1;
-
-        // 减疗影响
         const decreaseMultiplier = (1 - toNum(params.healing_decrease) / 100);
 
-        // 基础治疗计算函数
         const calculateBaseHealing = (attack, multiplier) => {
-          return ((attack + toNum(params.healing_power) + skillCoefficient) * multiplier * healingMultiplier) * decreaseMultiplier;
+          return ((attack + toNum(params.healing_power) + skillCoefficient + skillIncreaseValue) * multiplier * healingMultiplier) * decreaseMultiplier;
         };
 
-        // 根据技能类型计算总平均治疗量
         let totalAverageHealing = 0;
 
         if (skillParams.type === 'burst') {
@@ -1297,8 +1185,6 @@
             <h1 className="text-xl md:text-2xl font-bold text-center text-white">治療強度計算器</h1>
             <p className="text-center text-white text-opacity-90 text-sm mt-1">如有問題請聯繫櫻桃白蘭地@緣定今生</p>
           </div>
-
-          <ImageUploader setInputs={setInputs} type="healing" />
 
           {/* 新的治疗量计算器 */}
           <div className="bg-white p-4 md:p-6 rounded-xl shadow-md border border-gray-100 mb-6">
@@ -1462,6 +1348,37 @@
                     />
                   )}
                 </div>
+
+                {/* 技能增強選單 */}
+                <div className="flex flex-col">
+                  <label className="text-xs md:text-sm text-gray-600 mb-1 flex items-center">
+                    <span className="mr-1 md:mr-2">⚡</span>技能增強
+                  </label>
+                  <select
+                    name="skill_increase"
+                    value={inputs.skill_increase}
+                    onChange={handleChange}
+                    className="border border-gray-200 rounded-lg p-2 text-sm w-full focus:ring-2 focus:ring-cherry-500 focus:border-cherry-500 transition-colors"
+                  >
+                    {skillIncreaseOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                  {inputs.skill_increase !== '0' && (
+                    <input
+                      type="number"
+                      name="skill_increase_value"
+                      placeholder="請輸入數值，例如：600"
+                      value={inputs.skill_increase_value || ''}
+                      onChange={handleChange}
+                      min="0"
+                      max="100"
+                      className="mt-2 border border-gray-200 rounded-lg p-2 text-sm w-full focus:ring-2 focus:ring-cherry-500 focus:border-cherry-500 transition-colors"
+                    />
+                  )}
+                </div>
               </div>
 
               {/* 治疗量计算结果 */}
@@ -1473,7 +1390,8 @@
                   </h3>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+                {/* 基础数据 */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
                   <div className="bg-cherry-50 p-3 rounded-lg">
                     <p className="text-xs text-cherry-700">面板攻擊</p>
                     <p className="text-sm font-bold text-cherry-800">{healingResult.panelAttack}</p>
@@ -1483,8 +1401,8 @@
                     <p className="text-sm font-bold text-cherry-800">{healingResult.skillCoefficient}</p>
                   </div>
                   <div className="bg-cherry-50 p-3 rounded-lg">
-                    <p className="text-xs text-cherry-700">技能倍率</p>
-                    <p className="text-sm font-bold text-cherry-800">{healingResult.skillMultiplier}%</p>
+                    <p className="text-xs text-cherry-700">技能治療加成</p>
+                    <p className="text-sm font-bold text-cherry-800">{healingResult.skillHealingBonus}%</p>
                   </div>
                   <div className="bg-cherry-50 p-3 rounded-lg">
                     <p className="text-xs text-cherry-700">治療倍率</p>
@@ -1502,59 +1420,54 @@
                     <p className="text-xs text-blue-700">會心總倍率</p>
                     <p className="text-sm font-bold text-blue-800">{healingResult.critTotalMultiplier}</p>
                   </div>
-                  <div className="bg-gray-50 p-3 rounded-lg">
-                    <p className="text-xs text-gray-700">技能治療加成</p>
-                    <p className="text-sm font-bold text-gray-800">{healingResult.skillHealingBonus}%</p>
+                  <div className="bg-purple-50 p-3 rounded-lg">
+                    <p className="text-xs text-purple-700">總平均治療量</p>
+                    <p className="text-lg font-bold text-purple-800">{healingResult.totalAverageHealing}</p>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-3">
-                    <div className="bg-green-50 p-3 rounded-lg">
-                      <p className="text-xs text-green-700">面板治療量</p>
-                      <p className="text-lg font-bold text-green-800">{healingResult.panelHealing}</p>
-                    </div>
-                    <div className="bg-gray-50 p-3 rounded-lg">
-                      <p className="text-xs text-gray-700">不會心最大治療量</p>
-                      <p className="text-sm font-bold text-gray-800">{healingResult.maxPanelHealing}</p>
-                    </div>
-                    <div className="bg-gray-50 p-3 rounded-lg">
-                      <p className="text-xs text-gray-700">不會心最小治療量</p>
-                      <p className="text-sm font-bold text-gray-800">{healingResult.minPanelHealing}</p>
-                    </div>
-                  </div>
-                  <div className="space-y-3">
-                    <div className="bg-cherry-500 p-3 rounded-lg">
-                      <p className="text-xs text-white">平均治療量</p>
-                      <p className="text-lg font-bold text-white">{healingResult.averageHealing}</p>
-                    </div>
-                    <div className="bg-orange-50 p-3 rounded-lg">
-                      <p className="text-xs text-orange-700">會心最大治療量</p>
-                      <p className="text-sm font-bold text-orange-800">{healingResult.maxCritHealing}</p>
-                    </div>
-                    <div className="bg-orange-50 p-3 rounded-lg">
-                      <p className="text-xs text-orange-700">會心最小治療量</p>
-                      <p className="text-sm font-bold text-orange-800">{healingResult.minCritHealing}</p>
-                    </div>
-                  </div>
-                </div>
+                {/* 分段显示治疗部分 */}
+                {healingResult.healingParts && healingResult.healingParts.map((part, index) => (
+                  <div key={index} className="mb-6 p-4 bg-gradient-to-r from-green-50 to-blue-50 rounded-lg border-l-4 border-green-500">
+                    <h4 className="font-bold text-lg text-gray-800 mb-3 flex items-center">
+                      <span className="mr-2">{index === 0 ? '🎯' : index === 1 ? '🔄' : '💫'}</span>
+                      {part.displayName}
+                    </h4>
 
-                {(healingResult.guangHealing !== '0' || healingResult.luoxiaHealing !== '0') && (
-                  <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {healingResult.guangHealing !== '0' && (
-                      <div className="bg-purple-50 p-3 rounded-lg">
-                        <p className="text-xs text-purple-700">霞光轉換治療量 (技能自帶)</p>
-                        <p className="text-lg font-bold text-purple-800">{healingResult.guangHealing}</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                      <div className="bg-white p-3 rounded-lg shadow-sm">
+                        <p className="text-xs text-gray-600">面板治療量</p>
+                        <p className="text-sm font-bold text-gray-800">{part.panelHealing}</p>
                       </div>
-                    )}
-                    {healingResult.hasLuoxia && (
-                      <div className="bg-indigo-50 p-3 rounded-lg">
-                        <p className="text-xs text-indigo-700">落霞轉換治療量 (18%)</p>
-                        <p className="text-lg font-bold text-indigo-800">{healingResult.luoxiaHealing}</p>
+                      <div className="bg-white p-3 rounded-lg shadow-sm">
+                        <p className="text-xs text-gray-600">不會心最大治療量</p>
+                        <p className="text-sm font-bold text-gray-800">{part.maxHealing}</p>
                       </div>
-                    )}
+                      <div className="bg-white p-3 rounded-lg shadow-sm">
+                        <p className="text-xs text-gray-600">不會心最小治療量</p>
+                        <p className="text-sm font-bold text-gray-800">{part.minHealing}</p>
+                      </div>
+                      <div className="bg-green-100 p-3 rounded-lg shadow-sm">
+                        <p className="text-xs text-green-700">平均治療量</p>
+                        <p className="text-lg font-bold text-green-800">{part.averageHealing}</p>
+                      </div>
+                      <div className="bg-orange-100 p-3 rounded-lg shadow-sm">
+                        <p className="text-xs text-orange-700">會心最大治療量</p>
+                        <p className="text-sm font-bold text-orange-800">{part.critMaxHealing}</p>
+                      </div>
+                      <div className="bg-orange-100 p-3 rounded-lg shadow-sm">
+                        <p className="text-xs text-orange-700">會心最小治療量</p>
+                        <p className="text-sm font-bold text-orange-800">{part.critMinHealing}</p>
+                      </div>
+                      {part.luoxiaHealing && (
+                        <div className="bg-indigo-100 p-3 rounded-lg shadow-sm">
+                          <p className="text-xs text-indigo-700">落霞轉換治療量 (18%)</p>
+                          <p className="text-sm font-bold text-indigo-800">{part.luoxiaHealing}</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                )}
+                ))}
               </div>
             </div>
           </div>
