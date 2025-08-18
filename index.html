@@ -548,6 +548,7 @@
     };
 
     //治療計算機-更新
+
     const HealingCalculator = () => {
       const [inputs, setInputs] = useState({
         armor_break: "0",
@@ -557,10 +558,10 @@
         faction_restraint: "0",
         resistance_ignore: "0",
         healing_power_equip: "0",
-        max_attack: "6525",
-        min_attack: "5539",
+        max_attack: "6032",
+        min_attack: "6032",
         crit: "1460",
-        crit_damage: "190.2",
+        crit_damage: "190",
         healing_power: "5141",
         skill_level: "21",
         gold_i: "0",
@@ -639,7 +640,6 @@
         { value: 'beidongqun', label: '蝶戀花·夢染 - 被動群體治療', tag: '群體' },
       ];
 
-      // 技能類型與增強選項的映射
       const skillTagToIncreaseMap = {
         '單體': 'singleskillincrease',
         '群體': 'AOEskillincrease',
@@ -680,14 +680,15 @@
             continuousMultiplier: 0,
             targetMultiplier: 0,
             selfMultiplier: 0,
-            lamer1: 81.5,
-            lamer2: 305,
+            lamer1: 81,
+            lamer2: 291.64,
             skillBonus: 0,
-            guangEffect: 0.18, // 霞光转换
+            guangEffect: 0.18,
             description: '初綻(化境)',
             hasLuoxia: true,
             type: 'burst',
-            displayName: '爆發治療(366%)'
+            displayName: '爆發治療(366%)',
+            hasSkillIncrease: false
           },
           fufeng: {
             initialMultiplier: 0,
@@ -696,13 +697,14 @@
             targetMultiplier: 0,
             selfMultiplier: 0,
             lamer1: 25,
-            lamer2: 1131,
+            lamer2: 1131.4,
             skillBonus: 0.1,
             guangEffect: 0,
             description: '扶風(化境)',
             hasLuoxia: true,
             type: 'continuous',
-            displayName: '持續治療(79%/秒)'
+            displayName: '持續治療(79%/秒)',
+            hasSkillIncrease: true
           },
           qingfeng: {
             initialMultiplier: 0.75,
@@ -710,16 +712,18 @@
             continuousInterval: 3,
             targetMultiplier: 0,
             selfMultiplier: 0,
-            lamer1: 35,
-            lamer2: 185,
-            continuouslamer2: 85,
+            lamer1_initial: 35,
+            lamer2_initial: 185.4,
+            lamer1_continuous: 35,
+            lamer2_continuous: 85.1,
             skillBonus: 0.1,
             guangEffect: 0,
             description: '清風垂露(化境)',
             hasLuoxia: true,
             type: 'mixed',
             initialDisplayName: '初始群體治療(75%)',
-            continuousDisplayName: '持續治療(31%/3秒)'
+            continuousDisplayName: '持續治療(31%/3秒)',
+            hasSkillIncrease: false
           },
           caiyi: {
             initialMultiplier: 1.0,
@@ -728,43 +732,47 @@
             targetMultiplier: 0,
             selfMultiplier: 0,
             lamer1: 40,
-            lamer2: 1411,
+            lamer2: 1411.8,
             skillBonus: 0.1,
             guangEffect: 0,
             description: '彩翼(化境)',
-            hasLuoxia: false, // 彩翼沒有落霞效果
+            hasLuoxia: false,
             type: 'mixed',
             initialDisplayName: '初始治療(100%)',
-            continuousDisplayName: '持續治療(25%/秒)'
+            continuousDisplayName: '持續治療(25%/秒)',
+            hasSkillIncrease: true
           },
           pingA: {
             initialMultiplier: 0,
             continuousMultiplier: 0,
             targetMultiplier: 0.31,
             selfMultiplier: 0.52,
-            lamer1: 28,
-            lamer2: 180,
+            lamer1_target: 28,
+            lamer2_target: 25.3,
+            lamer1_self: 41,
+            lamer2_self: 39.4,
             skillBonus: 0.1,
             guangEffect: 0,
             description: '點絳(化境)',
             hasLuoxia: true,
             type: 'split',
             targetDisplayName: '對目標治療(31%)',
-            selfDisplayName: '對自身治療(52%)'
+            selfDisplayName: '對自身治療(52%)',
+            hasSkillIncrease: false
           },
           beidongqun: {
             initialMultiplier: 0.81,
             continuousMultiplier: 0,
             targetMultiplier: 0,
             selfMultiplier: 0,
-            lamer1: 26,
-            lamer2: 170,
+            fixedCoefficient: 300.7,
             skillBonus: 0,
             guangEffect: 0,
             description: '蝶戀花·夢染',
-            hasLuoxia: false, // 蝶戀花沒有落霞效果
+            hasLuoxia: false,
             type: 'burst',
-            displayName: '被動群體治療(81%)'
+            displayName: '被動群體治療(81%)',
+            hasSkillIncrease: true
           },
         };
         return skillParams[skillType] || skillParams.chuzhan;
@@ -807,19 +815,14 @@
         const maxAttack = toNum(max_attack);
         const minAttack = toNum(min_attack);
 
-        // 技能系数计算
-        const skillCoefficient = skillParams.lamer1 * toNum(skill_level) - skillParams.lamer2;
-
-        // 技能治疗效果提升
-        const skillHealingBonus = skillParams.skillBonus;
-
-        let skillIncreaseValue = 0; // 默認值
-        // 查找當前技能的標籤
-        const selectedSkill = skillTypeOptions.find(skill => skill.value === inputs.skill_type);
-        if (selectedSkill && inputs.skill_increase !== '0') {
-          // 檢查增強選項是否與技能標籤匹配
-          if (skillTagToIncreaseMap[selectedSkill.tag] === inputs.skill_increase) {
-            skillIncreaseValue = toNum(inputs.skill_increase_value);
+        // 技能增強值計算
+        let skillIncreaseValue = 0;
+        if (skillParams.hasSkillIncrease) {
+          const selectedSkill = skillTypeOptions.find(skill => skill.value === inputs.skill_type);
+          if (selectedSkill && inputs.skill_increase !== '0') {
+            if (skillTagToIncreaseMap[selectedSkill.tag] === inputs.skill_increase) {
+              skillIncreaseValue = toNum(inputs.skill_increase_value);
+            }
           }
         }
 
@@ -828,6 +831,7 @@
         if (inputs.permanent_skill === 'custom') {
           permanentSkillValue = toNum(inputs.custom_permanent_skill) / 100;
         }
+        const skillHealingBonus = skillParams.skillBonus;
         const healingMultiplier = 1 + toNum(water_constellation) + toNum(faction_skills) + permanentSkillValue + skillHealingBonus;
 
         // 会心率计算
@@ -841,16 +845,26 @@
         // 减疗影响
         const decreaseMultiplier = (1 - toNum(healing_decrease) / 100);
 
+        // 技能系数计算函数
+        const calculateSkillCoefficient = (lamer1, lamer2, isFixed = false) => {
+          if (isFixed) {
+            return lamer2; // 对于固定系数，lamer2存储固定值
+          }
+          return lamer1 * toNum(skill_level) - lamer2;
+        };
+
         // 基础治疗计算函数
-        const calculateBaseHealing = (attack, multiplier) => {
-          return ((attack + toNum(healing_power) + skillCoefficient + skillIncreaseValue) * multiplier * healingMultiplier) * decreaseMultiplier;
+        const calculateBaseHealing = (attack, multiplier, skillCoeff) => {
+          return ((attack + toNum(healing_power) + skillCoeff + skillIncreaseValue) * multiplier * healingMultiplier) * decreaseMultiplier;
         };
 
         // 计算单个部分的治疗数据
-        const calculateHealingPart = (attack, multiplier, displayName) => {
-          const panelHealing = calculateBaseHealing((toNum(max_attack) + toNum(min_attack)) / 2, multiplier);
-          const maxHealing = calculateBaseHealing(toNum(max_attack), multiplier);
-          const minHealing = calculateBaseHealing(toNum(min_attack), multiplier);
+        const calculateHealingPart = (attack, multiplier, displayName, lamer1, lamer2, isFixed = false) => {
+          const skillCoeff = calculateSkillCoefficient(lamer1, lamer2, isFixed);
+
+          const panelHealing = calculateBaseHealing((toNum(max_attack) + toNum(min_attack)) / 2, multiplier, skillCoeff);
+          const maxHealing = calculateBaseHealing(toNum(max_attack), multiplier, skillCoeff);
+          const minHealing = calculateBaseHealing(toNum(min_attack), multiplier, skillCoeff);
           const critPanelHealing = panelHealing * critDamageMultiplier;
           const critMaxHealing = maxHealing * critDamageMultiplier;
           const critMinHealing = minHealing * critDamageMultiplier;
@@ -866,7 +880,8 @@
             critMaxHealing: critMaxHealing.toFixed(0),
             critMinHealing: critMinHealing.toFixed(0),
             averageHealing: averageHealing.toFixed(0),
-            luoxiaHealing: skillParams.hasLuoxia ? (averageHealing * 0.18).toFixed(0) : null
+            luoxiaHealing: skillParams.hasLuoxia ? (averageHealing * 0.18).toFixed(0) : null,
+            skillCoefficient: skillCoeff.toFixed(1)
           };
         };
 
@@ -874,7 +889,7 @@
           panelAttack: panelAttack.toFixed(0),
           maxAttack: maxAttack.toFixed(0),
           minAttack: minAttack.toFixed(0),
-          skillCoefficient: skillCoefficient.toFixed(0),
+          skillCoefficient: "多套参数",
           healingMultiplier: healingMultiplier.toFixed(3),
           skillHealingBonus: (skillHealingBonus * 100).toFixed(0),
           critRate: (critRate * 100).toFixed(2),
@@ -889,9 +904,17 @@
 
         // 根据技能类型计算治疗部分
         if (skillParams.type === 'burst') {
-          result.healingParts.push(
-            calculateHealingPart(panelAttack, skillParams.initialMultiplier, skillParams.displayName)
-          );
+          if (skillParams.fixedCoefficient !== undefined) {
+            // 蝶恋花·梦染等固定系数技能
+            result.healingParts.push(
+              calculateHealingPart(panelAttack, skillParams.initialMultiplier, skillParams.displayName, 0, skillParams.fixedCoefficient, true)
+            );
+          } else {
+            // 初绽等普通技能
+            result.healingParts.push(
+              calculateHealingPart(panelAttack, skillParams.initialMultiplier, skillParams.displayName, skillParams.lamer1, skillParams.lamer2)
+            );
+          }
 
           // 霞光效果（初绽特有）
           if (skillParams.guangEffect > 0) {
@@ -900,24 +923,37 @@
           }
 
         } else if (skillParams.type === 'continuous') {
+          // 扶风等持续技能
           result.healingParts.push(
-            calculateHealingPart(panelAttack, skillParams.continuousMultiplier, skillParams.displayName)
+            calculateHealingPart(panelAttack, skillParams.continuousMultiplier, skillParams.displayName, skillParams.lamer1, skillParams.lamer2)
           );
 
         } else if (skillParams.type === 'mixed') {
-          result.healingParts.push(
-            calculateHealingPart(panelAttack, skillParams.initialMultiplier, skillParams.initialDisplayName)
-          );
-          result.healingParts.push(
-            calculateHealingPart(panelAttack, skillParams.continuousMultiplier, skillParams.continuousDisplayName)
-          );
+          if (skillParams.lamer1_initial !== undefined) {
+            // 清风垂露 - 使用不同的初始和持续参数
+            result.healingParts.push(
+              calculateHealingPart(panelAttack, skillParams.initialMultiplier, skillParams.initialDisplayName, skillParams.lamer1_initial, skillParams.lamer2_initial)
+            );
+            result.healingParts.push(
+              calculateHealingPart(panelAttack, skillParams.continuousMultiplier, skillParams.continuousDisplayName, skillParams.lamer1_continuous, skillParams.lamer2_continuous)
+            );
+          } else {
+            // 彩翼等其他混合技能 - 使用相同参数
+            result.healingParts.push(
+              calculateHealingPart(panelAttack, skillParams.initialMultiplier, skillParams.initialDisplayName, skillParams.lamer1, skillParams.lamer2)
+            );
+            result.healingParts.push(
+              calculateHealingPart(panelAttack, skillParams.continuousMultiplier, skillParams.continuousDisplayName, skillParams.lamer1, skillParams.lamer2)
+            );
+          }
 
         } else if (skillParams.type === 'split') {
+          // 点绛 - 使用不同的目标和自身参数
           result.healingParts.push(
-            calculateHealingPart(panelAttack, skillParams.targetMultiplier, skillParams.targetDisplayName)
+            calculateHealingPart(panelAttack, skillParams.targetMultiplier, skillParams.targetDisplayName, skillParams.lamer1_target, skillParams.lamer2_target)
           );
           result.healingParts.push(
-            calculateHealingPart(panelAttack, skillParams.selfMultiplier, skillParams.selfDisplayName)
+            calculateHealingPart(panelAttack, skillParams.selfMultiplier, skillParams.selfDisplayName, skillParams.lamer1_self, skillParams.lamer2_self)
           );
         }
 
@@ -928,7 +964,7 @@
         return result;
       };
 
-      // 其他函数保持不变
+      // 计算单个属性投资的增傷效果
       const calculateInvestmentIncrease = (attr, points) => {
         const params = { ...inputs };
 
@@ -1090,19 +1126,19 @@
       const calculateHealingWithParams = (params) => {
         const skillParams = getSkillParams(params.skill_type || inputs.skill_type);
         const panelAttack = (toNum(params.max_attack) + toNum(params.min_attack)) / 2;
-        const skillCoefficient = skillParams.lamer1 * toNum(params.skill_level) - skillParams.lamer2;
-        const skillHealingBonus = skillParams.skillBonus;
 
-        let skillIncreaseValue = 0; // 默認值
-        // 查找當前技能的標籤
-        const selectedSkill = skillTypeOptions.find(skill => skill.value === inputs.skill_type);
-        if (selectedSkill && inputs.skill_increase !== '0') {
-          // 檢查增強選項是否與技能標籤匹配
-          if (skillTagToIncreaseMap[selectedSkill.tag] === inputs.skill_increase) {
-            skillIncreaseValue = toNum(inputs.skill_increase_value);
+        // 技能增強值計算
+        let skillIncreaseValue = 0;
+        if (skillParams.hasSkillIncrease) {
+          const selectedSkill = skillTypeOptions.find(skill => skill.value === inputs.skill_type);
+          if (selectedSkill && inputs.skill_increase !== '0') {
+            if (skillTagToIncreaseMap[selectedSkill.tag] === inputs.skill_increase) {
+              skillIncreaseValue = toNum(inputs.skill_increase_value);
+            }
           }
         }
 
+        const skillHealingBonus = skillParams.skillBonus;
         let permanentSkillValue = toNum(params.permanent_skill);
         if (params.permanent_skill === 'custom') {
           permanentSkillValue = toNum(params.custom_permanent_skill) / 100;
@@ -1115,36 +1151,71 @@
         const critDamageMultiplier = (toNum(params.crit_damage) / 100 - 1) / 2 + 1;
         const decreaseMultiplier = (1 - toNum(params.healing_decrease) / 100);
 
-        const calculateBaseHealing = (attack, multiplier) => {
-          return ((attack + toNum(params.healing_power) + skillCoefficient + skillIncreaseValue) * multiplier * healingMultiplier) * decreaseMultiplier;
+        // 技能系数计算函数
+        const calculateSkillCoefficient = (lamer1, lamer2, isFixed = false) => {
+          if (isFixed) {
+            return lamer2; // 对于固定系数，lamer2存储固定值
+          }
+          return lamer1 * toNum(params.skill_level) - lamer2;
+        };
+
+        const calculateBaseHealing = (attack, multiplier, skillCoeff) => {
+          return ((attack + toNum(params.healing_power) + skillCoeff + skillIncreaseValue) * multiplier * healingMultiplier) * decreaseMultiplier;
         };
 
         let totalAverageHealing = 0;
 
         if (skillParams.type === 'burst') {
-          const panelInitial = calculateBaseHealing(panelAttack, skillParams.initialMultiplier);
+          let skillCoeff;
+          if (skillParams.fixedCoefficient !== undefined) {
+            skillCoeff = calculateSkillCoefficient(0, skillParams.fixedCoefficient, true);
+          } else {
+            skillCoeff = calculateSkillCoefficient(skillParams.lamer1, skillParams.lamer2);
+          }
+
+          const panelInitial = calculateBaseHealing(panelAttack, skillParams.initialMultiplier, skillCoeff);
           const critInitialPanel = panelInitial * critDamageMultiplier;
           const averageInitial = (1 - critRate) * panelInitial + critRate * critInitialPanel;
           totalAverageHealing = averageInitial;
 
         } else if (skillParams.type === 'continuous') {
-          const panelContinuous = calculateBaseHealing(panelAttack, skillParams.continuousMultiplier);
+          const skillCoeff = calculateSkillCoefficient(skillParams.lamer1, skillParams.lamer2);
+          const panelContinuous = calculateBaseHealing(panelAttack, skillParams.continuousMultiplier, skillCoeff);
           const critContinuousPanel = panelContinuous * critDamageMultiplier;
           const averageContinuous = (1 - critRate) * panelContinuous + critRate * critContinuousPanel;
           totalAverageHealing = averageContinuous;
 
         } else if (skillParams.type === 'mixed') {
-          const panelInitial = calculateBaseHealing(panelAttack, skillParams.initialMultiplier);
-          const panelContinuous = calculateBaseHealing(panelAttack, skillParams.continuousMultiplier);
-          const critInitialPanel = panelInitial * critDamageMultiplier;
-          const critContinuousPanel = panelContinuous * critDamageMultiplier;
-          const averageInitial = (1 - critRate) * panelInitial + critRate * critInitialPanel;
-          const averageContinuous = (1 - critRate) * panelContinuous + critRate * critContinuousPanel;
-          totalAverageHealing = averageInitial + averageContinuous;
+          if (skillParams.lamer1_initial !== undefined) {
+            // 清风垂露
+            const initialSkillCoeff = calculateSkillCoefficient(skillParams.lamer1_initial, skillParams.lamer2_initial);
+            const continuousSkillCoeff = calculateSkillCoefficient(skillParams.lamer1_continuous, skillParams.lamer2_continuous);
+
+            const panelInitial = calculateBaseHealing(panelAttack, skillParams.initialMultiplier, initialSkillCoeff);
+            const panelContinuous = calculateBaseHealing(panelAttack, skillParams.continuousMultiplier, continuousSkillCoeff);
+            const critInitialPanel = panelInitial * critDamageMultiplier;
+            const critContinuousPanel = panelContinuous * critDamageMultiplier;
+            const averageInitial = (1 - critRate) * panelInitial + critRate * critInitialPanel;
+            const averageContinuous = (1 - critRate) * panelContinuous + critRate * critContinuousPanel;
+            totalAverageHealing = averageInitial + averageContinuous;
+          } else {
+            // 彩翼等
+            const skillCoeff = calculateSkillCoefficient(skillParams.lamer1, skillParams.lamer2);
+            const panelInitial = calculateBaseHealing(panelAttack, skillParams.initialMultiplier, skillCoeff);
+            const panelContinuous = calculateBaseHealing(panelAttack, skillParams.continuousMultiplier, skillCoeff);
+            const critInitialPanel = panelInitial * critDamageMultiplier;
+            const critContinuousPanel = panelContinuous * critDamageMultiplier;
+            const averageInitial = (1 - critRate) * panelInitial + critRate * critInitialPanel;
+            const averageContinuous = (1 - critRate) * panelContinuous + critRate * critContinuousPanel;
+            totalAverageHealing = averageInitial + averageContinuous;
+          }
 
         } else if (skillParams.type === 'split') {
-          const panelTarget = calculateBaseHealing(panelAttack, skillParams.targetMultiplier);
-          const panelSelf = calculateBaseHealing(panelAttack, skillParams.selfMultiplier);
+          const targetSkillCoeff = calculateSkillCoefficient(skillParams.lamer1_target, skillParams.lamer2_target);
+          const selfSkillCoeff = calculateSkillCoefficient(skillParams.lamer1_self, skillParams.lamer2_self);
+
+          const panelTarget = calculateBaseHealing(panelAttack, skillParams.targetMultiplier, targetSkillCoeff);
+          const panelSelf = calculateBaseHealing(panelAttack, skillParams.selfMultiplier, selfSkillCoeff);
           const critTargetPanel = panelTarget * critDamageMultiplier;
           const critSelfPanel = panelSelf * critDamageMultiplier;
           const averageTarget = (1 - critRate) * panelTarget + critRate * critTargetPanel;
@@ -1203,6 +1274,7 @@
             <div
               className={`transition-all duration-500 overflow-hidden ${showHealingCalculator ? "max-h-[2000px] opacity-100" : "max-h-0 opacity-0"}`}
             >
+              <ImageUploader setInputs={setInputs} type="healing" />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 {[
                   { key: "max_attack", label: "最大攻擊", icon: "⚔️" },
@@ -1374,7 +1446,7 @@
                       value={inputs.skill_increase_value || ''}
                       onChange={handleChange}
                       min="0"
-                      max="100"
+                      max="100000"
                       className="mt-2 border border-gray-200 rounded-lg p-2 text-sm w-full focus:ring-2 focus:ring-cherry-500 focus:border-cherry-500 transition-colors"
                     />
                   )}
@@ -1397,8 +1469,8 @@
                     <p className="text-sm font-bold text-cherry-800">{healingResult.panelAttack}</p>
                   </div>
                   <div className="bg-cherry-50 p-3 rounded-lg">
-                    <p className="text-xs text-cherry-700">技能係數</p>
-                    <p className="text-sm font-bold text-cherry-800">{healingResult.skillCoefficient}</p>
+                    <p className="text-xs text-cherry-700">技能等級</p>
+                    <p className="text-sm font-bold text-cherry-800">{inputs.skill_level}</p>
                   </div>
                   <div className="bg-cherry-50 p-3 rounded-lg">
                     <p className="text-xs text-cherry-700">技能治療加成</p>
@@ -1432,6 +1504,9 @@
                     <h4 className="font-bold text-lg text-gray-800 mb-3 flex items-center">
                       <span className="mr-2">{index === 0 ? '🎯' : index === 1 ? '🔄' : '💫'}</span>
                       {part.displayName}
+                      <span className="ml-2 text-sm text-gray-600">
+                        (系數: {part.skillCoefficient})
+                      </span>
                     </h4>
 
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
